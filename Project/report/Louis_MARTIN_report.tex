@@ -1,0 +1,147 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{graphicx}       % include graphics
+\usepackage{subcaption}     % subfigures
+\usepackage{float}          % placement of floats
+\usepackage{fancyhdr}       % head notes and foot notes
+
+\graphicspath{ {images/} }
+
+
+
+
+
+\title{P3 - Dictionary learning, application to denoising and inpainting}
+
+
+\author{
+  Louis Martin\\
+  \href{mailto:louis.martin@student.ecp.fr}{\tt louis.martin@student.ecp.fr}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Louis MARTIN}
+\rhead{Sparsity and Compressed Sensing: Project}
+
+\rfoot{Page \thepage}
+
+\begin{document}
+
+\maketitle
+\pagebreak
+
+\begin{abstract}
+% Abstract (½ page): 
+% What problem(s) is studied ? 
+% Why is it relevant ? 
+% What solution(s) is proposed ? 
+% Which contributions (theory, numerics, etc) ? 
+
+\end{abstract}
+
+\section{Introduction}
+
+% Introduction (~3 pages) : 
+% Presentation of the problem(s). 
+% Previous works (at least a few citations). If relevant, include things that you have seen during the MVA course (or possibly other courses). 
+% Contributions. Why is the studied method different/better/worse/etc. than existing previous works. 
+
+\section{MAIN BODY}
+% Main body (~10 pages) : 
+% Presentation of the method(s). 
+% Theoretical guarantees. 
+% Numerics. 
+
+\section{Conclusion}
+% Conclusion and perspective (~1 page)
+% Summary of the result obtained: pros and cons (limitation, problems, error in the articles, etc)
+% Possible improvement/extension
+
+
+
+
+\begin{thebibliography}{9}
+% Bibliography (~1 page)
+\bibitem{matrixfactorization}
+  J. Mairal, F. Bach, J.Ponce, G. Sapiro,
+  \emph{Online Learning for Matrix Factorization and Sparse Coding},
+  Journal of Machine Learning Research 11 19-60, 2010.
+  % http://www.di.ens.fr/~fbach/mairal10a.pdf
+
+\bibitem{ksvd}
+  M. Aharon, M. Elad, A. Bruckstein,
+  \emph{K-SVD: An Algorithm for Designing Overcomplete Dictionaries for Sparse Representation},
+  IEEE transactions on signal processing, VOL. 54, NO. 11, November 2006.
+  % http://www.cs.technion.ac.il/~elad/publications/journals/2004/32_KSVD_IEEE_TSP.pdf
+ 
+
+\end{thebibliography}
+\end{document}
+
+% Information for the project report: 
+% If possible, write the report in english. 
+% You must bring a printed version with your to give me before the presentation. This is a strict deadline. 
+% Using Latex is highly recommended.
+% Roughly 15 pages (A4, 11pt font, single column), including roughly one page of bibliography.
+% Should be similar to a (short) scientific article in an applied mathematics journal. 
+% No source code. 
+% When presenting the numerics, give all parameters, so that the results are reproducible. 
+% It should not be a rewriting of the original article. You should only report about what you have done, and only explain the theory that is relevant to explain the numerics you have done.
+% Suggestion of structure for the report: 
+% Abstract (½ page): 
+% What problem(s) is studied ? 
+% Why is it relevant ? 
+% What solution(s) is proposed ? 
+% Which contributions (theory, numerics, etc) ? 
+% Introduction (~3 pages) : 
+% Presentation of the problem(s). 
+% Previous works (at least a few citations). If relevant, include things that you have seen during the MVA course (or possibly other courses). 
+% Contributions. Why is the studied method different/better/worse/etc. than existing previous works. 
+% Main body (~10 pages) : 
+% Presentation of the method(s). 
+% Theoretical guarantees. 
+% Numerics. 
+% Conclusion and perspective (~1 page)
+% Summary of the result obtained: pros and cons (limitation, problems, error in the articles, etc)
+% Possible improvement/extension
+% Bibliography (~1 page)
+% 
+% 
+% P3 - Dictionary learning, application to denoising and inpainting
+% [Louis MARTIN]
+% http://www.numerical-tours.com/matlab/sparsity_4_dictionary_learning/
+% http://www.numerical-tours.com/matlab/sparsity_5_dictionary_learning_denoising/
+% http://www.cs.technion.ac.il/~elad/publications/journals/2004/32_KSVD_IEEE_TSP.pdf
+% http://www.di.ens.fr/~fbach/mairal10a.pdf
+% 
+% 
+% Very useful to have a redundant dictionary i.e. more words than each word dimension.
+% 
+% Why do we want sparsity, i.e. a small number of non-zero coefficients ?
+% 1) Compression
+% 2) Theorem in the first lecture -> good compression coefficients => good denoising
+% 3) Natural images tend to have a small number of non-zero coefficients.
+% Complex images like random images (or lot of noise) or trees will have a higher number of coefficient.
+% Sparsity is the a good indicator of natural images
+% 
+% En gros implementer ce qu'ils disent dans les papiers.
+% Jouer avec les parametres et essayer de voir ce qui marche bien.
+% Parametres:
+% taille des patch
+% choix du seuil
+% param de moyennage (param magique)
+% 
+% Appliquer ça à l'inpainting:
+% faire le dictionnary learning direct sur l'image avec des trous. Ca marche mieux
+% que de le faire sur une image sans trous.
+% 
+% 
+% 
