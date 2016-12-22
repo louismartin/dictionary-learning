@@ -48,11 +48,33 @@
 \end{abstract}
 
 \section{Introduction}
-
 % Introduction (~3 pages) : 
 % Presentation of the problem(s). 
 % Previous works (at least a few citations). If relevant, include things that you have seen during the MVA course (or possibly other courses). 
 % Contributions. Why is the studied method different/better/worse/etc. than existing previous works. 
+
+Decomposing a vector on a sparse basis is good because of: 
+% Why do we want sparsity, i.e. a small number of non-zero coefficients ?
+% 1) Compression
+% 2) Theorem in the first lecture -> good compression coefficients => good denoising
+% 3) Natural images tend to have a small number of non-zero coefficients.
+% Complex images like random images (or lot of noise) or trees will have a higher number of coefficient.
+% Sparsity is the a good indicator of natural images
+% TODO: citation with author and date
+The choice of the basis is important.
+One can use a predefined basis which will be the same for all tasks and datasets as the Fourier basis or the wavelet basis \cite{mallat1999}.
+% TODO: talking of 'basis' is abusive because it is often overcomplete
+Another approach is to learn the basis, i.e. to learn a dictionary which gives good results in several tasks has 
+%%%%%%%%%% Taken from \cite{matrixfactorization}
+recently led to state-of-the-art
+results in numerous low-level signal processing tasks such as image denoising (Elad and Aharon,
+2006; Mairal et al., 2008b), texture synthesis (Peyre, 2009) and audio processing (Grosse et al., ´
+2007; Fevotte et al., 2009; Zibulevsky and Pearlmutter, 2001), as well as higher- ´ level tasks such as
+image classification (Raina et al., 2007; Mairal et al., 2008a, 2009b; Bradley and Bagnell, 2009;
+Yang et al., 2009),
+%%%%%%%%%%
+The basis is not orthogonal -> more flexibility
+The learnt basis look like wavelets / Gabor filters but are tuned to the data -> better accuracy
 
 \section{MAIN BODY}
 % Main body (~10 pages) : 
@@ -64,7 +86,7 @@
 % Conclusion and perspective (~1 page)
 % Summary of the result obtained: pros and cons (limitation, problems, error in the articles, etc)
 % Possible improvement/extension
-
+First filters of neural networks -> looks like a dictionary
 
 
 
@@ -82,7 +104,10 @@
   IEEE transactions on signal processing, VOL. 54, NO. 11, November 2006.
   % http://www.cs.technion.ac.il/~elad/publications/journals/2004/32_KSVD_IEEE_TSP.pdf
  
-
+ %TODO: beautify
+\bibitem{mallat1999}
+. Mallat. A Wavelet Tour of Signal Processing, Second Edition. Academic Press, New York,
+September 1999.
 \end{thebibliography}
 \end{document}
 
@@ -125,13 +150,7 @@
 % 
 % Very useful to have a redundant dictionary i.e. more words than each word dimension.
 % 
-% Why do we want sparsity, i.e. a small number of non-zero coefficients ?
-% 1) Compression
-% 2) Theorem in the first lecture -> good compression coefficients => good denoising
-% 3) Natural images tend to have a small number of non-zero coefficients.
-% Complex images like random images (or lot of noise) or trees will have a higher number of coefficient.
-% Sparsity is the a good indicator of natural images
-% 
+ 
 % En gros implementer ce qu'ils disent dans les papiers.
 % Jouer avec les parametres et essayer de voir ce qui marche bien.
 % Parametres:
