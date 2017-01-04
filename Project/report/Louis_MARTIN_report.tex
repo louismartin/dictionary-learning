@@ -5,6 +5,7 @@
 \usepackage{url}            % simple URL typesetting
 \usepackage{booktabs}       % professional-quality tables
 \usepackage{amsfonts}       % blackboard math symbols
+\usepackage{bbm}            % Nice symbols
 \usepackage{nicefrac}       % compact symbols for 1/2, etc.
 \usepackage{microtype}      % microtypography
 \usepackage{graphicx}       % include graphics
@@ -14,8 +15,8 @@
 \graphicspath{ {images/} }
 
 
-
-
+% Nice R sign
+\newcommand{\RR}{\mathbbm{R}}
 
 \title{P3 - Dictionary learning, application to denoising and inpainting}
 
@@ -37,29 +38,29 @@
 \maketitle
 
 \begin{abstract}
-% Abstract (½ page):
-% What problem(s) is studied ?
+%% Abstract (½ page):
+%% What problem(s) is studied ?
 This paper will focus on how to efficiently learn a dictionary in order to obtain a sparse representation of a signal (e.g. image or audio).
-% Why is it relevant ?
+%% Why is it relevant ?
 Deriving a sparse representation of a signal can be very efficient in solving multiple signal processing problems.
 It has been successfully used in compression, inpainting, denoising, inverse problems and more.
 One way to obtain a sparse coding is by using dictionaries.
 A dictionary acts as a basis on which the data can be accurately represented using a small number of coefficients.
-This basis can be either predefined or learned, both approach have shown great success.
+This basis can be either predefined or learned, both approaches have shown great results.
 We will here focus how to efficiently learn an appropriate dictionary given the data we want to encode.
 Finding a good dictionary is important because it will define the representational power of the sparse coding,
 i.e. how well the sparse coded signal will represent the original signal.
 The learning process is therefore a key step for sparse representation.
 % TODO:
-% What solution(s) is proposed ?
-% Which contributions (theory, numerics, etc) ?
+%% What solution(s) is proposed ?
+%% Which contributions (theory, numerics, etc) ?
 
 \end{abstract}
 
 \section{Introduction}
-% Introduction (~3 pages) :
-% Presentation of the problem(s).
-Sparse coding is able to solve multiple signal processing tasks such as compression, inpainting, denoising, texture synthesis ...
+%% Introduction (~3 pages) :
+%% Presentation of the problem(s).
+Sparse coding is able to solve multiple signal processing tasks such as compression, inpainting, denoising, texture synthesis and so on.
 % Why do we want sparsity, i.e. a small number of non-zero coefficients ?
 % 1) Compression
 We want sparsity, i.e. a small number of non-zero coefficients for compression for obvious reasons of storage space.
@@ -72,52 +73,67 @@ Natural image also tend to have a small number of non-zero coefficient whereas c
 random images of images with trees will have a higher number of coefficients.
 % Sparsity is the a good indicator of natural images
 Sparsity is therefore a good indicator of natural images
-% Previous works (at least a few citations). If relevant, include things that you have seen during the MVA course (or possibly other courses).
+%% Previous works (at least a few citations). If relevant, include things that you have seen during the MVA course (or possibly other courses).
 The choice of the space in which the sparse representation lives is thus important.
 The problem is often reduced to finding a good basis for this space.
 It can be either be predefined or learned.
-Another approach is to learn the basis, i.e. to learn a dictionary which gives good results in several tasks datasets as the Fourier basis or the wavelet basis \cite{mallat1999}.
+
+One can use a predefined basis which will be the same for all tasks and datasets such as the Fourier basis or the wavelet basis \cite{mallat1999}.
 The fact that these basis do not depend on the data makes it hard to design but also powerful.
 The good sparse representation of natural images in the wavelet space led to the success of the JPEG2000 algorithm for image compression \cite{marcellin00}.
-Another approach is to learn the basis, i.e. to learn a dictionary which gives good results in several tasks.
-The term basis here is often abusive because the atoms composing the dictionary are often not linearly independant.
+
+Another approach is to learn the basis, i.e. to learn a dictionary which gives good results in several tasks. Indeed having a specific dictionary that can be adapted to certain type of images or to one image in particular can be very powerful.
+The sparse representation can be sparser and at the same time representing the data better.
+The term basis to denote an over complete dictionary is abusive. The atoms composing the dictionary are not linearly independent.
+Instead of being harmful, designing overcomplete dicionaries gives more flexibility to the sparse representation and leads to easier problems.
+% TODO:
+%% Contributions. Why is the studied method different/better/worse/etc. than existing previous works.
+
+\subsection{Notations}
+Given a signal of size $m$, $x \in \RR^m$, a dictionary is a collection of $k$ prototype signal atoms represented in a matrix $D \in \RR^{m \times k}$
+We want to find $\alpha \in \RR^k$, the sparse representation of $x$ in the dictionary $D$.
+We want an exact representation $D \alpha = x$ or more frequently an approximate representation $x \approx D \alpha$.
+Finding the best sparse representation of a signal is a NP-Hard problem, that is why we will approximate the signal.
+The sparsity measure is the $l_0$ norm
 
 
-% Contributions. Why is the studied method different/better/worse/etc. than existing previous works.
+
+
 
 
 
 % TODO: citation with author and date
-The choice of the basis is important.
 % TODO: talking of 'basis' is abusive because it is often overcomplete
-Another approach is to learn the basis, i.e. to learn a dictionary which gives good results in several tasks has
 %%%%%%%%%% Taken from \cite{matrixfactorization}
-recently led to state-of-the-art
-results in numerous low-level signal processing tasks such as image denoising (Elad and Aharon,
-2006; Mairal et al., 2008b), texture synthesis (Peyre, 2009) and audio processing (Grosse et al.,
-2007; Fevotte et al., 2009; Zibulevsky and Pearlmutter, 2001), as well as higher- level tasks such as
-image classification (Raina et al., 2007; Mairal et al., 2008a, 2009b; Bradley and Bagnell, 2009;
-Yang et al., 2009),
+%recently led to state-of-the-art
+%results in numerous low-level signal processing tasks such as image denoising (Elad and Aharon,
+%2006; Mairal et al., 2008b), texture synthesis (Peyre, 2009) and audio processing (Grosse et al.,
+%2007; Fevotte et al., 2009; Zibulevsky and Pearlmutter, 2001), as well as higher- level tasks such as
+%image classification (Raina et al., 2007; Mairal et al., 2008a, 2009b; Bradley and Bagnell, 2009;
+%Yang et al., 2009),
 %%%%%%%%%%
-The basis is not orthogonal -> more flexibility
-The learnt basis look like wavelets / Gabor filters but are tuned to the data -> better accuracy
+%The basis is not orthogonal -> more flexibility
+%The learnt basis look like wavelets / Gabor filters but are tuned to the data -> better accuracy
 
-\section{MAIN BODY}
-% Main body (~10 pages) :
-% Presentation of the method(s).
-% Theoretical guarantees.
-% Numerics.
+\section{Dictionary learning methods}
+%% Main body (~10 pages) :
+%% Presentation of the method(s).
+%% Theoretical guarantees.
+%% Numerics.
+\subsection{Online learning for matrix factorization}
+\subsection{K-SVD}
+
 
 \section{Conclusion}
-% Conclusion and perspective (~1 page)
-% Summary of the result obtained: pros and cons (limitation, problems, error in the articles, etc)
-% Possible improvement/extension
+%% Conclusion and perspective (~1 page)
+%% Summary of the result obtained: pros and cons (limitation, problems, error in the articles, etc)
+%% Possible improvement/extension
 First filters of neural networks -> looks like a dictionary
 
 
 
 \begin{thebibliography}{9}
-% Bibliography (~1 page)
+%% Bibliography (~1 page)
 \bibitem{matrixfactorization}
   J. Mairal, F. Bach, J.Ponce, G. Sapiro,
   \emph{Online Learning for Matrix Factorization and Sparse Coding},
