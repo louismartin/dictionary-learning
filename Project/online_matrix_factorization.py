@@ -10,18 +10,33 @@ get_ipython().magic(u'matplotlib inline')
 get_ipython().magic(u'load_ext autoreload')
 get_ipython().magic(u'autoreload 2')
 
-from nt_toolbox.signal import load_image, imageplot, snr
-from nt_toolbox.general import clamp
+import time
+
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
+from sklearn import linear_model
+
+from nt_toolbox.signal import load_image, imageplot, snr
+from nt_toolbox.general import clamp
 
 import warnings
 warnings.filterwarnings('ignore')
 
 
-# # Dictionary learning: numerical tour approach
+# # Dictionary learning
 # TODO: quote the matlab numerical tour
+
+def damage_image(image):
+    rho = .7 # percentage of removed pixels
+    Omega = np.zeros([img_size, img_size])
+    sel = np.random.permutation(img_size**2)
+    np.ravel(Omega)[sel[np.arange(int(rho*img_size**2))]] = 1
+
+    Phi = lambda f, Omega: f*(1-Omega)
+
+    damaged_image = Phi(image, Omega)
+    return damaged_image
 
 def random_dictionary(image, width, n_atoms):
     '''
@@ -140,125 +155,9 @@ def dictionary_update_pgd(Y, D, X, n_iter=50):
         D = ProjC(D - tau * np.dot(R, X.T))
     return D
 
-
-img_size = 256
-filename = 'image.jpg'
-filename = 'barb_crop.png'
-filename = 'lena.bmp'
-f0 = load_image(filename, img_size)
-
-plt.figure(figsize = (6,6))
-imageplot(f0, 'Image f_0')
-
-
-width = 10
-signal_size = width*width
-n_atoms = 2*signal_size
-n_test = 20*n_atoms
-k = 4
-
-
-D0 = high_energy_random_dictionary(f0, width, n_atoms)
-Y_test = random_dictionary(f0, width, n_test)
-
-
-n_iter_learning = 6
-n_iter_dico = 25
-n_iter_coef = 50
-E = np.zeros(2*n_iter_learning)
-X = np.zeros((n_atoms, n_test))
-D = D0
-for i in tqdm(range(n_iter_learning)):
-    # --- coefficient update ----
-    X = sparse_code_pgd(Y_test, D, X, sparsity=k, n_iter=n_iter_coef)
-    E[2*i] = np.linalg.norm(Y_test - np.dot(D, X))**2
-    # --- dictionary update ----
-    D = dictionary_update_pgd(Y_test, D, X, n_iter=n_iter_dico)
-    E[2*i+1] = np.linalg.norm(Y_test - np.dot(D, X))**2
-
-
-# Remove first points (burn in)
-start = 4
-assert start%2==0
-E_plot = E[start:]
-
-plt.plot(range(E_plot.shape[0]), E_plot)
-index_coef = list(range(0, E_plot.shape[0], 2))
-index_dico = list(range(1, E_plot.shape[0], 2))
-plt.plot(index_coef, E_plot[index_coef], '*', label='After coefficient update')
-plt.plot(index_dico, E_plot[index_dico], 'o', label='After dictionary update')
-plt.legend(numpoints=1)
-plt.title('$J(x)$')
-plt.show()
-
-plt.figure(figsize=(8,12))
-plot_dictionary(D0)
-plt.title('D0')
-plt.show()
-plt.figure(figsize=(8,12))
-plot_dictionary(D)
-plt.title('D')
-plt.show()
-
-min(E)
-
-
-n_test = 1000
-Y_test = random_dictionary(f0, width, n_test)
-
-
-X0 = np.zeros((n_atoms, n_test))
-tic = time.time()
-for j in range(n_iter_coef):
-    R = np.dot(D, X0) - Y_test
-    X0 = ProjX(X0 - gamma * np.dot(D.T, R), k)
-print(time.time()-tic)
-print(np.sum(X0!=0, axis=0))
-np.linalg.norm(Y_test - np.dot(D, X0))**2
-
-
-np.linalg.norm(Y_test - np.dot(D, X0))**2
-
-
-lasso = linear_model.Lasso(0.01, fit_intercept=False)
-tic = time.time()
-X1 = lasso.fit(D, Y_test).coef_.T
-print(time.time()-tic)
-print(np.sum(X1!=0, axis=0))
-np.linalg.norm(Y_test - np.dot(D, X1))**2
-
-
-np.mean(np.sum(X1!=0, axis=0))
-
-
-X1[:,0].shape
-
-
-# We construct a mask $\Omega$ made of random pixel locations.  
-# The damaging operator put to zeros the pixel locations $x$ for which $\Omega(x)=1$.  
-# The damaged observations reads $y = \Phi f_0$.
-
-def damage_image(image):
-    rho = .7 # percentage of removed pixels
-    Omega = np.zeros([img_size, img_size])
-    sel = np.random.permutation(img_size**2)
-    np.ravel(Omega)[sel[np.arange(int(rho*img_size**2))]] = 1
-
-    Phi = lambda f, Omega: f*(1-Omega)
-
-    damaged_image = Phi(image, Omega)
-    return damaged_image
-
-y = damage_image(f0)
-plt.figure(figsize = (6,6))
-imageplot(y, 'Observations y')
-
-
-# ### Algorithm 2 Dictionary update
-# From "Online Learning for Matrix Factorization and Sparse Coding"
-
-def update_dictionary(D, A, B):
+def dictionary_update_omf(D, A, B):
     '''
+    Algorithm 2 from "Online Learning for Matrix Factorization and Sparse Coding
     Update the dictionary column by column.
     Denoting k the number of atoms in the dictionary and m the size of the signal, we have:
     
@@ -283,53 +182,67 @@ def update_dictionary(D, A, B):
         D[:,j] = 1/max(np.linalg.norm(uj),1)*uj
     return D
 
-
-def evaluate(Y_test, D, model):
-    X = model.fit(D, Y_test).coef_
-    error = np.linalg.norm(Y_test - np.dot(D,X.T))
-    #score = model.score(D, Y_test)
+def reconstruction_error(Y, D, X):
+    error = np.linalg.norm(Y_test - np.dot(D, X))**2
     return error
 
 
-# ### Algorithm 1 Online dictionary learning
-# From "Online Learning for Matrix Factorization and Sparse Coding"
+# ## Image and variables
 
-import time
-from tqdm import tqdm
-from sklearn import linear_model
+img_size = 256
+filename = 'image.jpg'
+filename = 'barb_crop.png'
+filename = 'lena.bmp'
+f0 = load_image(filename, img_size)
 
-# Initialize variables
-T = 100 # Number of iterations
-lambd = 0.1 # L1 penalty coefficient for alpha
-# LARS-Lasso from LEAST ANGLE REGRESSION, Efron et al http://statweb.stanford.edu/~tibs/ftp/lars.pdf
-lasso = linear_model.Lasso(lambd, fit_intercept=False) # TODO: use lars instead of lasso
+plt.figure(figsize = (6,6))
+imageplot(f0, 'Image f_0')
 
-D0 = high_energy_random_dictionary(f0, width, n_atoms) # Initialize dictionary with k random atoms
+
+width = 10
+signal_size = width*width
+n_atoms = 2*signal_size
+n_test = 20*n_atoms
+k = 4
+
+
+D0 = high_energy_random_dictionary(f0, width, n_atoms)
+Y_test = random_dictionary(f0, width, n_test)
+
+
+# # Numerical tour approach
+
+n_iter_learning = 10
+n_iter_dico = 50
+n_iter_coef = 100
+E = np.zeros(2*n_iter_learning)
+X = np.zeros((n_atoms, n_test))
 D = D0
-# TODO: normalize atom to unit norm as sparsity_4_dictionary_learning ?
-A = np.zeros((n_atoms,n_atoms))
-B = np.zeros((signal_size,n_atoms))
-
-# Evaluation data initialization
-sparsity = []
-error = []
-Y_test = random_dictionary(f0, width, 20*n_atoms)
-
-for t in tqdm(range(T)):
-    y = random_dictionary(f0, width, n_atoms=1) # Draw 1 random patch as column vector
-    x = lasso.fit(D, y).coef_.reshape((n_atoms,1)) # Get the sparse coding # TODO: try with lasso.sparse_coef_
-    A += np.dot(x,x.T)
-    B += np.dot(y,x.T)
-    D = update_dictionary(D, A, B)
-    
-    if t%10 == 0:
-        # Evaluation:
-        error.append(evaluate(Y_test, D, lasso))
-        sparsity.append(np.sum(x!=0))#/alpha.shape[0]
+for i in tqdm(range(n_iter_learning)):
+    # --- coefficient update ----
+    X = sparse_code_pgd(Y_test, D, X, sparsity=k, n_iter=n_iter_coef)
+    E[2*i] = reconstruction_error(Y_test, D, X)
+    # --- dictionary update ----
+    D = dictionary_update_pgd(Y_test, D, X, n_iter=n_iter_dico)
+    E[2*i+1] = reconstruction_error(Y_test, D, X)
 
 
-plt.plot(error)
+# Plot
+
+# Remove first points (burn in)
+start = 4
+assert start%2==0
+E_plot = E[start:]
+
+plt.plot(range(E_plot.shape[0]), E_plot)
+index_coef = list(range(0, E_plot.shape[0], 2))
+index_dico = list(range(1, E_plot.shape[0], 2))
+plt.plot(index_coef, E_plot[index_coef], '*', label='After coefficient update')
+plt.plot(index_dico, E_plot[index_dico], 'o', label='After dictionary update')
+plt.legend(numpoints=1)
+plt.title('Reconstruction error')
 plt.show()
+
 plt.figure(figsize=(8,12))
 plot_dictionary(D0)
 plt.title('D0')
@@ -339,16 +252,49 @@ plot_dictionary(D)
 plt.title('D')
 plt.show()
 
+min(E)
 
 
+# # Online dictionary learning
+# From "Online Learning for Matrix Factorization and Sparse Coding"  
+# LARS-Lasso from LEAST ANGLE REGRESSION, Efron et al http://statweb.stanford.edu/~tibs/ftp/lars.pdf
+
+n_iter = 10*n_test
+lambd = 0.1 # L1 penalty coefficient for sparse coding
+lasso = linear_model.Lasso(lambd, fit_intercept=False) # TODO: use lars instead of lasso
+
+D = D0
+A = np.zeros((n_atoms,n_atoms))
+B = np.zeros((signal_size,n_atoms))
+
+sparsity = []
+E = []
+Y_test = random_dictionary(f0, width, 20*n_atoms)
+X = np.zeros((n_atoms, n_test))
+for i in tqdm(range(n_iter)):
+    # Draw 1 random patch y and get its sparse coding
+    #y = random_dictionary(f0, width, n_atoms=1)
+    y = Y_test[:,np.random.randint(Y_test.shape[1])].reshape((signal_size,1))
+    x = lasso.fit(D, y).coef_.reshape((n_atoms,1))
+    A += np.dot(x,x.T)
+    B += np.dot(y,x.T)
+    D = dictionary_update_omf(D, A, B)
+    
+    if i%n_test == 0:
+        # Evaluation:
+        X = sparse_code_pgd(Y_test, D, X, sparsity=4, n_iter=100)
+        E.append(reconstruction_error(Y_test, D, X))
+        sparsity.append(np.sum(x!=0))
 
 
-X = np.array([[1,2],[2,3],[-1,3]]).T
-1/np.linalg.norm(np.dot(X, X.T))
-
-
-np.sqrt(np.sum(np.dot(X, X.T)**2))
-
-
-X = np.array([[1,2,3], [4,3,2], [-1,5,3],[-3,-8,2]]).T
+plt.plot(E)
+plt.show()
+plt.figure(figsize=(8,12))
+plot_dictionary(D0)
+plt.title('D0')
+plt.show()
+plt.figure(figsize=(8,12))
+plot_dictionary(D)
+plt.title('D')
+plt.show()
 
