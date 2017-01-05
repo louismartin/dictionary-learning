@@ -11,6 +11,9 @@ get_ipython().magic(u'load_ext autoreload')
 get_ipython().magic(u'autoreload 2')
 
 import time
+import shelve
+import pickle
+import os.path as op
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -259,8 +262,11 @@ min(E)
 # From "Online Learning for Matrix Factorization and Sparse Coding"  
 # LARS-Lasso from LEAST ANGLE REGRESSION, Efron et al http://statweb.stanford.edu/~tibs/ftp/lars.pdf
 
-n_iter = 10*n_test
-lambd = 0.1 # L1 penalty coefficient for sparse coding
+n_iter = 20*n_test
+
+
+n_iter = 20*n_test
+lambd = 0.01 # L1 penalty coefficient for sparse coding
 lasso = linear_model.Lasso(lambd, fit_intercept=False) # TODO: use lars instead of lasso
 
 D = D0
@@ -271,6 +277,8 @@ sparsity = []
 E = []
 Y_test = random_dictionary(f0, width, 20*n_atoms)
 X = np.zeros((n_atoms, n_test))
+
+
 for i in tqdm(range(n_iter)):
     # Draw 1 random patch y and get its sparse coding
     #y = random_dictionary(f0, width, n_atoms=1)
@@ -279,22 +287,44 @@ for i in tqdm(range(n_iter)):
     A += np.dot(x,x.T)
     B += np.dot(y,x.T)
     D = dictionary_update_omf(D, A, B)
+    sparsity.append(np.mean(np.sum(x!=0, axis=0)))
     
-    if i%n_test == 0:
+    if i%(n_test/10) == 0:
         # Evaluation:
         X = sparse_code_pgd(Y_test, D, X, sparsity=4, n_iter=100)
         E.append(reconstruction_error(Y_test, D, X))
-        sparsity.append(np.sum(x!=0))
+        #sparsity.append(np.mean(np.sum(X!=0, axis=0)))
+
+
+# Save variables
+
+filename = op.join('vars','omf_2400000_iter.out')
+with shelve.open(filename,'n') as shelf: # 'n' for new
+    for key in dir():
+        try:
+            shelf[key] = globals()[key]
+        except (TypeError, pickle.PicklingError, AttributeError):
+            #
+            # __builtins__, my_shelf, and imported modules can not be shelved.
+            #
+            print('ERROR shelving: {0}'.format(key))
 
 
 plt.plot(E)
 plt.show()
-plt.figure(figsize=(8,12))
+'''plt.figure(figsize=(8,12))
 plot_dictionary(D0)
 plt.title('D0')
 plt.show()
 plt.figure(figsize=(8,12))
 plot_dictionary(D)
 plt.title('D')
-plt.show()
+plt.show()'''
+plt.plot(sparsity)
+
+
+sparsity
+
+
+
 
