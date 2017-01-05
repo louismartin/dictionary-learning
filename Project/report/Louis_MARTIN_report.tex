@@ -5,18 +5,21 @@
 \usepackage{url}            % simple URL typesetting
 \usepackage{booktabs}       % professional-quality tables
 \usepackage{amsfonts}       % blackboard math symbols
-\usepackage{bbm}            % Nice symbols
 \usepackage{nicefrac}       % compact symbols for 1/2, etc.
 \usepackage{microtype}      % microtypography
 \usepackage{graphicx}       % include graphics
 \usepackage{subcaption}     % subfigures
 \usepackage{float}          % placement of floats
 \usepackage{fancyhdr}       % head notes and foot notes
+\usepackage{bbm}            % Nice symbols
+\usepackage{mathtools}      % Math tools like operators
 \graphicspath{ {images/} }
 
 
-% Nice R sign
-\newcommand{\RR}{\mathbbm{R}}
+
+\newcommand{\RR}{\mathbbm{R}} % Nice R sign
+\DeclarePairedDelimiter\abs{\lvert}{\rvert} % abs
+\DeclarePairedDelimiter\norm{\lVert}{\rVert} % norm
 
 \title{P3 - Dictionary learning, application to denoising and inpainting}
 
@@ -89,17 +92,26 @@ Instead of being harmful, designing overcomplete dicionaries gives more flexibil
 % TODO:
 %% Contributions. Why is the studied method different/better/worse/etc. than existing previous works.
 
+\section{Problem statement}
 \subsection{Notations}
-Given a signal of size $m$, $x \in \RR^m$, a dictionary is a collection of $k$ prototype signal atoms represented in a matrix $D \in \RR^{m \times k}$
-We want to find $\alpha \in \RR^k$, the sparse representation of $x$ in the dictionary $D$.
-We want an exact representation $D \alpha = x$ or more frequently an approximate representation $x \approx D \alpha$.
+Given a signal of size $m$, $y \in \RR^m$, a dictionary is a collection of $k$ prototype signal atoms represented in a matrix $D \in \RR^{m \times k}$
+We want to find $x \in \RR^k$, the sparse representation of $y$ in the dictionary $D$.
+We want an exact representation $D x = y$ or more frequently an approximate representation $y \approx D x$.
+A sparse vector is a vector with a "small" number of non-zero coefficient.
+The sparsity measure is the $l_0$ pseudo-norm denoted $\norm{.}_0$.
+The sparsity constraint is hence $\norm{x}_0<N$ with $N \in \mathbbm{N}$.
+
+The problem we want to solve is therefore
+\begin{equation*}
+\min\limits_{D \in \RR^{m \times k}, x \in \RR^k} \norm{y - Dx}_2  \text{ subject to } \norm{x}_0<N
+\end{equation*}
 Finding the best sparse representation of a signal is a NP-Hard problem, that is why we will approximate the signal.
 The sparsity measure is the $l_0$ norm
 
 
 
-
-
+\subsection{Finding the sparse representation}
+\subsection{Finding the dictionary}
 
 
 % TODO: citation with author and date
@@ -120,9 +132,10 @@ The sparsity measure is the $l_0$ norm
 %% Presentation of the method(s).
 %% Theoretical guarantees.
 %% Numerics.
+\subsection{Block coordinare projected gradient descent}
 \subsection{Online learning for matrix factorization}
 \subsection{K-SVD}
-
+The approach in \cite{aharon06} is interesting in the way that it considers the dictionary learning problem as a generalization of a clustering problem.
 
 \section{Conclusion}
 %% Conclusion and perspective (~1 page)
