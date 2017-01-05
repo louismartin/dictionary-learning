@@ -1,0 +1,6 @@
+# Ignore everything
+*
+!.gitignore
+# Except those papers
+!mairal10a.pdf
+!32-KSVD-IEEE-TSP.pdf
