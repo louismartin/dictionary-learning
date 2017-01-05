@@ -13,6 +13,8 @@
 \usepackage{fancyhdr}       % head notes and foot notes
 \usepackage{bbm}            % Nice symbols
 \usepackage{mathtools}      % Math tools like operators
+\usepackage{algorithm}      % For writing algorithm
+\usepackage[noend]{algpseudocode} % For writing pseudocode
 \graphicspath{ {images/} }
 
 
@@ -20,6 +22,7 @@
 \newcommand{\RR}{\mathbbm{R}} % Nice R sign
 \DeclarePairedDelimiter\abs{\lvert}{\rvert} % abs
 \DeclarePairedDelimiter\norm{\lVert}{\rVert} % norm
+\DeclareMathOperator*{\argmin}{arg\,min} % argmin
 
 \title{P3 - Dictionary learning, application to denoising and inpainting}
 
@@ -94,21 +97,24 @@ Instead of being harmful, designing overcomplete dicionaries gives more flexibil
 
 \section{Problem statement}
 \subsection{Notations}
-Given a signal of size $m$, $y \in \RR^m$, a dictionary is a collection of $k$ prototype signal atoms represented in a matrix $D \in \RR^{m \times k}$
-We want to find $x \in \RR^k$, the sparse representation of $y$ in the dictionary $D$.
+Given a signal of size $m$, $y \in \RR^m$, a dictionary is a collection of $k$ prototype signal atoms represented in a matrix $D \in \RR^{m \times p}$
+We want to find $x \in \RR^p$, the sparse representation of $y$ in the dictionary $D$.
 We want an exact representation $D x = y$ or more frequently an approximate representation $y \approx D x$.
 A sparse vector is a vector with a "small" number of non-zero coefficient.
 The sparsity measure is the $l_0$ pseudo-norm denoted $\norm{.}_0$.
-The sparsity constraint is hence $\norm{x}_0<N$ with $N \in \mathbbm{N}$.
+The sparsity constraint is hence $\norm{x}_0<k$ with $k \in \mathbbm{N}$.
 
 The problem we want to solve is therefore
 \begin{equation*}
-\min\limits_{D \in \RR^{m \times k}, x \in \RR^k} \norm{y - Dx}_2  \text{ subject to } \norm{x}_0<N
+\min\limits_{D \in \RR^{m \times p}, x \in \RR^p} \norm{y - Dx}_2^2  \text{ subject to } \norm{x}_0<k
 \end{equation*}
 Finding the best sparse representation of a signal is a NP-Hard problem, that is why we will approximate the signal.
 The sparsity measure is the $l_0$ norm
+% TODO: say that it is non convex
 
-
+% TODO: Dictionary constraint
+We indeed want the dictionary to be normalized otherwise the atoms norm will increase only to decrease the coefficients norm and hence the $l_1$ constraint.
+This is not a behaviour that we want.
 
 \subsection{Finding the sparse representation}
 MP OMP FOCUSS \cite{gorodnitsky97} PGD
@@ -136,9 +142,35 @@ Not penilizing the dictionary -> dictionary values will increase for the sparse 
 %% Numerics.
 Most of the iterative methods are composed of the two steps defined above.
 Sparse coding the vector and updating the dictionary given this sparse representation.
+
+
 \subsection{Block coordinare projected gradient descent}
+% TODO:
 \cite{olshausen97} (k-SVD p-4313 [24])
-$$D^{(n+1)} = D^{(n)} - \tau (D^{(n)}X - Y) X^T$$
+
+A simple and efficient algorithm for dictionary learning is to use a gradient descent approach as in implemented in \cite{nt4}.
+This is a two step algorithm.
+We initialize $n$ training signals $(y_i \in \RR^m)_{i=1}^{n}$
+that we put in a matrix $Y \in \RR^{m \times n}, Y = [y_1 \ldots y_n]$.
+
+First we find the best sparse representation of the data given a fixed dictionary.
+$$ X^{(i+1)} \in \argmin_{X \in \chi_k} \norm{Y - D^{(i)}X}^2 $$
+where $\chi_k = \{ X \in \RR^{p \times n}, \norm{X}_0<k \}$.
+
+Then we update the dictionary given this sparse representation.
+$$ D^{(i+1)} \in \argmin_{D \in \mathcal{D}} \norm{Y - DX^{(i+1)}}^2 $$
+where $\mathcal{D} = \{ D \in \RR^{m \times p}, \forall i=1 \ldots p, \norm{D_{\cdot,i}} \leq 1 \}$, the constraint for unit norm atoms in the dictionary.
+
+
+$$ D^{(i+1)} = D^{(i)} - \tau (D^{(i)}X - Y) X^T $$
+
+\begin{algorithm}
+\caption{Projected gradient descent}\label{pgd}
+\begin{algorithmic}[1]
+\State toto
+\end{algorithmic}
+\end{algorithm}
+
 \begin{figure}[!htbp]
 \centering
   \includegraphics[width=\linewidth]{projected_gradient_descent.png}
@@ -188,6 +220,9 @@ basis set: A strategy employed by v1?,” Vision Res., vol. 37, pp.
 
 \bibitem{gorodnitsky97}
 % http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.154.6856&rep=rep1&type=pdf
+
+\bibitem{nt4}
+%https://github.com/gpeyre/numerical-tours/blob/master/matlab/sparsity_4_dictionary_learning.ipynb
 
 \end{thebibliography}
 \end{document}
