@@ -111,8 +111,10 @@ The sparsity measure is the $l_0$ norm
 
 
 \subsection{Finding the sparse representation}
+MP OMP FOCUSS \cite{gorodnitsky97} PGD
+Wikipedia -> A popular extension of Matching Pursuit (MP) is its orthogonal version: Orthogonal Matching Pursuit[11][12] (OMP). The main difference from MP is that after every step, all the coefficients extracted so far are updated, by computing the orthogonal projection of the signal onto the set of atoms selected so far. This can lead to better results than standard MP, but requires more computation.
 \subsection{Finding the dictionary}
-
+PGD MOD
 
 % TODO: citation with author and date
 % TODO: talking of 'basis' is abusive because it is often overcomplete
@@ -124,18 +126,27 @@ The sparsity measure is the $l_0$ norm
 %image classification (Raina et al., 2007; Mairal et al., 2008a, 2009b; Bradley and Bagnell, 2009;
 %Yang et al., 2009),
 %%%%%%%%%%
-%The basis is not orthogonal -> more flexibility
 %The learnt basis look like wavelets / Gabor filters but are tuned to the data -> better accuracy
-
+Not penilizing the dictionary -> dictionary values will increase for the sparse coef to tend to 0
+\cite{olshausen97} (k-SVD p-4313 [24]).
 \section{Dictionary learning methods}
 %% Main body (~10 pages) :
 %% Presentation of the method(s).
 %% Theoretical guarantees.
 %% Numerics.
+Most of the iterative methods are composed of the two steps defined above.
+Sparse coding the vector and updating the dictionary given this sparse representation.
 \subsection{Block coordinare projected gradient descent}
+\cite{olshausen97} (k-SVD p-4313 [24])
+$$D^{(n+1)} = D^{(n)} - \tau (D^{(n)}X - Y) X^T$$
+\begin{figure}[!htbp]
+\centering
+  \includegraphics[width=\linewidth]{projected_gradient_descent.png}
+\end{figure}
 \subsection{Online learning for matrix factorization}
+\cite{mairal10}
 \subsection{K-SVD}
-The approach in \cite{aharon06} is interesting in the way that it considers the dictionary learning problem as a generalization of a clustering problem.
+The approach in \cite{aharon06} is interesting in the way that it considers the dictionary learning problem as a generalization of a clustering problem. Clustering is indeed an extreme case of sparse coding where there is only one non-zero coefficient and this coefficient must be one.
 
 \section{Conclusion}
 %% Conclusion and perspective (~1 page)
@@ -147,13 +158,13 @@ First filters of neural networks -> looks like a dictionary
 
 \begin{thebibliography}{9}
 %% Bibliography (~1 page)
-\bibitem{matrixfactorization}
+\bibitem{mairal10}
   J. Mairal, F. Bach, J.Ponce, G. Sapiro,
   \emph{Online Learning for Matrix Factorization and Sparse Coding},
   Journal of Machine Learning Research 11 19-60, 2010.
   % http://www.di.ens.fr/~fbach/mairal10a.pdf
 
-\bibitem{ksvd}
+\bibitem{aharon06}
   M. Aharon, M. Elad, A. Bruckstein,
   \emph{K-SVD: An Algorithm for Designing Overcomplete Dictionaries for Sparse Representation},
   IEEE transactions on signal processing, VOL. 54, NO. 11, November 2006.
@@ -163,13 +174,23 @@ First filters of neural networks -> looks like a dictionary
 \bibitem{mallat1999}
 . Mallat. A Wavelet Tour of Signal Processing, Second Edition. Academic Press, New York,
 September 1999.
-\end{thebibliography}
-\end{document}
+
 
 \bibitem{marcellin00}
 M. W. Marcellin, M. J. Gormish, A. Bilgin, and M. P. Boliek, “An
 overview of JPEG-2000,” in Proc. Data Compression Conf., 2000, pp.
 523–541.
+
+\bibitem{olshausen97}
+B. A. Olshausen and B. J. Field, “Sparse coding with an overcomplete
+basis set: A strategy employed by v1?,” Vision Res., vol. 37, pp.
+3311–3325, 1997.
+
+\bibitem{gorodnitsky97}
+% http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.154.6856&rep=rep1&type=pdf
+
+\end{thebibliography}
+\end{document}
 % Information for the project report:
 % If possible, write the report in english.
 % You must bring a printed version with your to give me before the presentation. This is a strict deadline.

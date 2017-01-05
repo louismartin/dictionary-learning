@@ -215,7 +215,7 @@ Y_test = random_dictionary(f0, width, n_test)
 
 # # Numerical tour approach
 
-n_iter_learning = 10
+n_iter_learning = 100
 n_iter_dico = 50
 n_iter_coef = 100
 E = np.zeros(2*n_iter_learning)
@@ -240,10 +240,13 @@ E_plot = E[start:]
 plt.plot(range(E_plot.shape[0]), E_plot)
 index_coef = list(range(0, E_plot.shape[0], 2))
 index_dico = list(range(1, E_plot.shape[0], 2))
-plt.plot(index_coef, E_plot[index_coef], '*', label='After coefficient update')
-plt.plot(index_dico, E_plot[index_dico], 'o', label='After dictionary update')
-plt.legend(numpoints=1)
-plt.title('Reconstruction error')
+#plt.plot(index_coef, E_plot[index_coef], '*', markersize=3, label='After coefficient update')
+#plt.plot(index_dico, E_plot[index_dico], 'o', markersize=3, label='After dictionary update')
+#plt.legend(numpoints=1)
+plt.xlabel('iterations')
+plt.ylabel('Error: $||Y-DX||^2$')
+plt.title('Projected gradient descent')
+plt.savefig('images/projected_gradient_descent.png')
 plt.show()
 
 plt.figure(figsize=(8,12))
@@ -262,10 +265,8 @@ min(E)
 # From "Online Learning for Matrix Factorization and Sparse Coding"  
 # LARS-Lasso from LEAST ANGLE REGRESSION, Efron et al http://statweb.stanford.edu/~tibs/ftp/lars.pdf
 
-n_iter = 20*n_test
-
-
-n_iter = 20*n_test
+n_iter = 5*n_test
+test_interval = 1000
 lambd = 0.01 # L1 penalty coefficient for sparse coding
 lasso = linear_model.Lasso(lambd, fit_intercept=False) # TODO: use lars instead of lasso
 
@@ -287,18 +288,34 @@ for i in tqdm(range(n_iter)):
     A += np.dot(x,x.T)
     B += np.dot(y,x.T)
     D = dictionary_update_omf(D, A, B)
+    D = ProjC(D)
     sparsity.append(np.mean(np.sum(x!=0, axis=0)))
     
-    if i%(n_test/10) == 0:
+    if i%test_interval == 0:
         # Evaluation:
         X = sparse_code_pgd(Y_test, D, X, sparsity=4, n_iter=100)
         E.append(reconstruction_error(Y_test, D, X))
         #sparsity.append(np.mean(np.sum(X!=0, axis=0)))
 
 
+plt.plot(range(0, n_iter, test_interval), E)
+plt.title('Reconstruction error on the test set')
+plt.show()
+#plt.savefig('omf_2400000_iter.png')
+plt.figure(figsize=(8,12))
+plot_dictionary(D0)
+plt.title('D0')
+plt.show()
+plt.figure(figsize=(8,12))
+plot_dictionary(D)
+plt.title('D')
+plt.show()
+plt.plot(sparsity)
+
+
 # Save variables
 
-filename = op.join('vars','omf_2400000_iter.out')
+filename = op.join('vars','omf_iter.out')
 with shelve.open(filename,'n') as shelf: # 'n' for new
     for key in dir():
         try:
@@ -308,22 +325,6 @@ with shelve.open(filename,'n') as shelf: # 'n' for new
             # __builtins__, my_shelf, and imported modules can not be shelved.
             #
             print('ERROR shelving: {0}'.format(key))
-
-
-plt.plot(E)
-plt.show()
-'''plt.figure(figsize=(8,12))
-plot_dictionary(D0)
-plt.title('D0')
-plt.show()
-plt.figure(figsize=(8,12))
-plot_dictionary(D)
-plt.title('D')
-plt.show()'''
-plt.plot(sparsity)
-
-
-sparsity
 
 
 
