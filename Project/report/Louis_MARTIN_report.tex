@@ -54,7 +54,7 @@ One way to obtain a sparse coding is by using dictionaries.
 A dictionary acts as a basis on which the data can be accurately represented using a small number of coefficients.
 This basis can be either predefined or learned, both approaches have shown great results.
 We will here focus how to efficiently learn an appropriate dictionary given the data we want to encode.
-Finding a good dictionary is important because it will define the representational power of the sparse coding,
+Finding a good dictionary is indeed important because it will define the representational power of the sparse coding,
 i.e. how well the sparse coded signal will represent the original signal.
 The learning process is therefore a key step for sparse representation.
 % TODO:
@@ -69,59 +69,97 @@ The learning process is therefore a key step for sparse representation.
 Sparse coding is able to solve multiple signal processing tasks such as compression, inpainting, denoising, texture synthesis and so on.
 % Why do we want sparsity, i.e. a small number of non-zero coefficients ?
 % 1) Compression
-We want sparsity, i.e. a small number of non-zero coefficients for compression for obvious reasons of storage space.
+Sparsity, i.e. having a small number of non-zero coefficients, is wanted for several of its useful properties.
+
+It is very effective for compression for obvious reasons of storage space, we only have to store a small set of sparse coefficients that will permit an accurate reconstruction if the original signal.
 % 2) Theorem in the first lecture -> good compression coefficients => good denoising
-Good compression coefficients is also often implies good denoising properties.
-Indeed noise is often small local high frequency information that pruned by the sparse coding.
+
+Good compression coefficients also often implies good denoising properties.
+Noise is indeed often small local high frequency and unstructured information that is pruned by the sparse coding.
 % 3) Natural images tend to have a small number of non-zero coefficients.
 % Complex images like random images (or lot of noise) or trees will have a higher number of coefficient.
-Natural image also tend to have a small number of non-zero coefficient whereas complex images like
-random images of images with trees will have a higher number of coefficients.
+Natural image tend to have a small number of non-zero coefficient whereas complex images like random images or images with trees will have a higher number of coefficients.
 % Sparsity is the a good indicator of natural images
-Sparsity is therefore a good indicator of natural images
+Sparsity is therefore a good indicator of natural images.
+
 %% Previous works (at least a few citations). If relevant, include things that you have seen during the MVA course (or possibly other courses).
-The choice of the space in which the sparse representation lives is thus important.
+The choice of the space in which the sparse representation lives is important.
 The problem is often reduced to finding a good basis for this space.
 It can be either be predefined or learned.
 
-One can use a predefined basis which will be the same for all tasks and datasets such as the Fourier basis or the wavelet basis \cite{mallat1999}.
-The fact that these basis do not depend on the data makes it hard to design but also powerful.
-The good sparse representation of natural images in the wavelet space led to the success of the JPEG2000 algorithm for image compression \cite{marcellin00}.
+One can use a predefined basis which will be fixed for all tasks and datasets such as the Fourier basis or the wavelet basis thanks to \cite{mallat1999}.
+The fact that such a basis does not depend on the data makes it hard to design but also powerful because it can be reused for and define a standard.
+The good sparse representation of natural images in the wavelet space led to the success of the JPEG2000 algorithm for image compression, see \cite{marcellin00}.
 
-Another approach is to learn the basis, i.e. to learn a dictionary which gives good results in several tasks. Indeed having a specific dictionary that can be adapted to certain type of images or to one image in particular can be very powerful.
-The sparse representation can be sparser and at the same time representing the data better.
-The term basis to denote an over complete dictionary is abusive. The atoms composing the dictionary are not linearly independent.
+Another approach is to learn the basis, which is what we will focus on in this paper.
+From this point on we will interpret this basis as a dictionary for reasons that we will explain later.
+A dictionary is a set of representative signals called atoms.
+The signal of interest is therefore expressed as a linear combination of these atoms.
+
+Having a learned dictionary that is specific to a certain type of data or to one image in particular can be very powerful.
+The sparse representation can at the same time be sparser and represent the data better.
+Another key idea is to design overcomplete dictionaries which means that there are more atoms than the each atom dimension and so these atoms are not linearly independent.
+This is why the term basis to denote an overcomplete dictionary is abusive.
 Instead of being harmful, designing overcomplete dicionaries gives more flexibility to the sparse representation and leads to easier problems.
+The decomposition is not unique anymore as it would be with orthogonal basis such as Fourier or wavelet.
 % TODO:
 %% Contributions. Why is the studied method different/better/worse/etc. than existing previous works.
+%% TODO: P Stock While this intuitive bag-of-features approach is widely used in computer vision [6
+
 
 \section{Problem statement}
 \subsection{Notations}
-Given a signal of size $m$, $y \in \RR^m$, a dictionary is a collection of $k$ prototype signal atoms represented in a matrix $D \in \RR^{m \times p}$
+Given a signal of size $m$, \textbf{$y \in \RR^m$}, a dictionary is a collection of $k$ prototype signal atoms represented in a matrix $D \in \RR^{m \times p}$
 We want to find $x \in \RR^p$, the sparse representation of $y$ in the dictionary $D$.
-We want an exact representation $D x = y$ or more frequently an approximate representation $y \approx D x$.
+We want an exact representation $D x = y$ or more frequently an approximate representation $ D x \approx y$.
 A sparse vector is a vector with a "small" number of non-zero coefficient.
 The sparsity measure is the $l_0$ pseudo-norm denoted $\norm{.}_0$.
-The sparsity constraint is hence $\norm{x}_0<k$ with $k \in \mathbbm{N}$.
+The sparsity constraint then writes $\norm{x}_0<k$ with $k \in \mathbbm{N}$.
 
 The problem we want to solve is therefore
-\begin{equation*}
-\min\limits_{D \in \RR^{m \times p}, x \in \RR^p} \norm{y - Dx}_2^2  \text{ subject to } \norm{x}_0<k
-\end{equation*}
-Finding the best sparse representation of a signal is a NP-Hard problem, that is why we will approximate the signal.
-The sparsity measure is the $l_0$ norm
-% TODO: say that it is non convex
+$$\min\limits_{D \in \RR^{m \times p}, x \in \RR^p} \norm{y - Dx}_2^2  \text{  subject to  } \norm{x}_0<k$$
 
-% TODO: Dictionary constraint
-We indeed want the dictionary to be normalized otherwise the atoms norm will increase only to decrease the coefficients norm and hence the $l_1$ constraint.
-This is not a behaviour that we want.
 
-\subsection{Finding the sparse representation}
+The sparsity measure, the $l_0$ pseudo-norm is non-convex which makes the problem hard to solve in many approaches like gradient descent because we are not guaranteed to find a minimum.
+Given that $\forall p <1$, the $l_p$ pseudo-norm is non convex, the closest convex norm that we can use is the $l_1$ norm which is in practice a good measure of the sparsity of a signal compared to other norms.
+This norm favors sparse representation as can be seen in figure \ref{l1l2_norm}
+
+\begin{figure}[!htbp]
+\centering
+  \includegraphics[width=0.5\linewidth]{l1l2_norm.jpg}
+  \caption{The $l_1$ norm favors sparisty}
+  \label{l1l2_norm}
+\end{figure}
+
+The constraint on $x$ will be traduced by $\chi_k = \{ x \in \RR^{p \times n}, \norm{x}_0<k \}$.
+Furthermore we will want the dictionary to have normalized atoms.
+Otherwise the atoms norm will increase for the sole purpose of decreasing the sparse representation norm and hence the $l_1$ constraint.
+To prevent this behaviour from occuring we  will want $ D \in \mathcal{D} $ with $\mathcal{D} = \{ D \in \RR^{m \times p}, \forall i=1 \ldots p, \norm{D_{\cdot,i}} \leq 1 \}$.
+
+We will often want to minimize the error over $n$ signals which will give us
+$$\min\limits_{D \in \mathcal{D}, (x_i)_{i=1}^n \in \chi_k} \sum\limits_{i=1}^n \norm{y_i - Dx_i}_2^2$$
+with $Y \in \RR^{m \times n}, Y = [y_1 \ldots y_n]$ and $X \in \RR^{p \times n}, X = [x_1 \ldots x_n]$.
+
+The problem now rewrites:
+\begin{equation} \label{eq:1}
+\min\limits_{D \in \mathcal{D}, X \in \chi_k} E(X,D) = \min\limits_{D \in \mathcal{D}, X \in \chi_k} \norm{Y - DX}_F^2
+\end{equation}
+
+\subsection{Splitting the dictionary learning task into two subproblems}
+Minimizing \ref{eq:1} both over $D$ and $X$ jointly is often not feasible.
+That is why many approach split it into two subproblems that can be solved iteratively.
+The first is to sparse code the data given the dictionary and the second to update the dictionary given this sparse coding.
+
+\subsubsection{Finding the sparse representation}
+This subproblem writes:
+\begin{equation} \label{eq:1}
+X \in \argmin_{X \in \chi_k} \norm{Y - DX}^2
+\end{equation}
 MP OMP FOCUSS \cite{gorodnitsky97} PGD
 Wikipedia -> A popular extension of Matching Pursuit (MP) is its orthogonal version: Orthogonal Matching Pursuit[11][12] (OMP). The main difference from MP is that after every step, all the coefficients extracted so far are updated, by computing the orthogonal projection of the signal onto the set of atoms selected so far. This can lead to better results than standard MP, but requires more computation.
-\subsection{Finding the dictionary}
+\subsubsection{Finding the dictionary}
 PGD MOD
-
+Finding the best sparse representation of a signal is a NP-Hard problem, that is why we will approximate the signal.
 % TODO: citation with author and date
 % TODO: talking of 'basis' is abusive because it is often overcomplete
 %%%%%%%%%% Taken from \cite{matrixfactorization}
@@ -175,10 +213,12 @@ $$ D^{(i+1)} = D^{(i)} - \tau (D^{(i)}X - Y) X^T $$
 \centering
   \includegraphics[width=\linewidth]{projected_gradient_descent.png}
 \end{figure}
-\subsection{Online learning for matrix factorization}
-\cite{mairal10}
+
 \subsection{K-SVD}
 The approach in \cite{aharon06} is interesting in the way that it considers the dictionary learning problem as a generalization of a clustering problem. Clustering is indeed an extreme case of sparse coding where there is only one non-zero coefficient and this coefficient must be one.
+
+\subsection{Online learning for matrix factorization}
+\cite{mairal10}
 
 \section{Conclusion}
 %% Conclusion and perspective (~1 page)
