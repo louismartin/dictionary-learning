@@ -193,7 +193,7 @@ Finding the best sparse representation of a signal is a NP-Hard problem, that is
 %Yang et al., 2009),
 %%%%%%%%%%
 %The learnt basis look like wavelets / Gabor filters but are tuned to the data -> better accuracy
-Not penilizing the dictionary -> dictionary values will increase for the sparse coef to tend to 0
+Not penalizing the dictionary -> dictionary values will increase for the sparse coef to tend to 0
 \cite{olshausen97} (k-SVD p-4313 [24]).
 \section{Dictionary learning methods}
 %% Main body (~10 pages) :
@@ -204,7 +204,7 @@ Most of the iterative methods are composed of the two steps defined above.
 Sparse coding the vector and updating the dictionary given this sparse representation.
 
 
-\subsection{Block coordinare projected gradient descent}
+\subsection{Block coordinate projected gradient descent}
 % TODO:
 \cite{olshausen97} (k-SVD p-4313 [24])
 
@@ -222,11 +222,35 @@ that we put in a matrix $Y \in \RR^{m \times n}, Y = [y_1 \ldots y_n]$.
       D^{(i+1)} \in \argmin_{D \in \mathcal{D}} \norm{Y - DX^{(i+1)}}^2
 	\end{equation}
 \end{itemize}
-Solving \ref{eq:pgd1} can be done using the Forward-Backward algorithm.
-\ref{eq:pgd1} can be rewritten as $\argmin E(X,D) + \iota_{\chi_k}$
 
 
-Deriving $E(X,D)$ with respect to X and D gives us the following update formulas:
+\subsubsection*{Forward-Backward algorithm}
+\ref{eq:pgd1} and \ref{eq:pgd2} can be solved using the Forward-Backward proximal algorithm which is detailed in \cite{parikh14} and in the class lectures.
+We have
+\begin{equation*}
+\begin{split}
+x^* \in \argmin_x F(x) + G(x) & \Longleftrightarrow 0 \in \nabla F(x^*) + \partial G(x^*)\\
+							  & \Longleftrightarrow (x^* - \gamma \nabla F(x^*)) \in x^* + \gamma \partial G(x^*)\\
+                              & \Longleftrightarrow x^* = Prox_{\gamma G} (x^* - \gamma \nabla F(x^*))
+\end{split}
+\end{equation*}
+
+The Forward-Backward update thus reads
+$$x^{(i+1)} = Prox_{\gamma G} (x^{(i)} - \gamma \nabla F(x^{(i)})$$
+with the proximal operator being
+$$Prox_{\gamma G}(x) = \argmin_z \frac{1}{2} \norm{x - z}^2 + \gamma G(z)$$
+
+Recall that if $G = \iota_C$ then
+$$Prox_{\gamma G}(x) = \argmin_{z \in C} \norm{x - z} = \Pi_C(x)$$
+In this special case, Forward-Back is equivalent to \emph{projected gradient descent}
+
+
+\subsubsection*{Back to dictionary learning}
+\ref{eq:pgd1} and \ref{eq:pgd2} can be rewritten as
+$$\argmin_X E(X,D) + \iota_{\chi_k}$$
+$$\argmin_D E(X,D) + \iota_{\mathcal{D}}$$
+
+We thus only need compute the gradient of $E(X,D)$ with respect to X and D and apply the Forward-Backward update rule to finally have:
 
 $$ X^{(i+1)} = X^{(i)} - \gamma D^T (D^{(i)}X^{(i)} - Y) $$
 $$ D^{(i+1)} = D^{(i)} - \tau (D^{(i)}X^{(i+1)} - Y) X^T $$
@@ -245,6 +269,37 @@ $$ D^{(i+1)} = D^{(i)} - \tau (D^{(i)}X^{(i+1)} - Y) X^T $$
 
 \subsection{K-SVD}
 The approach in \cite{aharon06} is interesting in the way that it considers the dictionary learning problem as a generalization of a clustering problem. Clustering is indeed an extreme case of sparse coding where there is only one non-zero coefficient and this coefficient must be one.
+
+The K-SVD algorithm can be used with any sparse coding technique because it is focused on the dictionary update.
+Each column $d_k$ of the dictionary is updated independently takes to a good decomposition of the error $E(X,D)$ into a matrix that does not depend on $d_k$ and a rank 1 matrix that does.
+\begin{equation} \label{eq:ksvd1}
+\begin{split}
+  E(X,D) & = \norm{Y - DX}_F^2 \\
+  		 & = \norm{Y - \sum\limits_{j=1}^{p} d_j x^j} \text{ ($x^j$ is the $j$th row, not the column $x_j$)}\\
+         & = \norm{(Y - \sum\limits_{j \neq k} d_j x^j)  - d_k x^k}
+\end{split}
+\end{equation}
+
+We will then subset these matrices to only keep the parts that use the column $d_k$.
+That is why the ensemble $\omega_k = \{i | i = 1 \ldots N x^k(i) \neq 0\}$, is introduced. It denotes the indices of the samples that use the atom $d_k$.
+Using this ensemble we can construct the matrix $\Omega_k \in N \times |\omega_k|$ with ones at the $(\omega_k(i),i)$ coordinates and zeros everywhere else.
+
+This matrix will subset the problem to only the values concerned by the update of the column $d_k$.
+
+We can now rewrite the minimization of the error defined in \ref{eq:ksvd1} as
+\begin{equation*}
+\begin{split}
+  \min_{d_k \in \mathcal{D}, x^k \in \chi_k} \norm{E_k - d_k x^k }_F^2 & = \min_{d_k \in \mathcal{D}, x^k \in \chi_k} \norm{E_k \Omega_k - d_k x^k \Omega_k}_F^2 \\
+  											& = \min_{d_k \in \mathcal{D}, x^k_R} \norm{E_k^R - d_k x^k_R}_F^2 \\
+                                            & \text{ (with $E_k^R$ and $x^k_R$ only values concerned by $d_k$)}
+\end{split}
+\end{equation*}
+
+Note that we optimize on both $d_k$ and $x^k_R$ at the same time. The restriction of $x^k$ to $x^k_R$ also forces it to have the same support before and after the update so that we don't need to explicitely enforce the sparsity constraint.
+This basically boils down to finding the best rank one matrix approximation of $E_k^R$.
+With $E_k^R = U \Delta V^T$ being the SVD decomposition of $E_k^R$, Eckart–Young–Mirsky theorem states that $\sigma_1 u_1 v_1^T$ is the best rank one approximation of $E_k^R$.\\
+The update rule is thus $d_k \leftarrow u_1$ and $x^k_R \leftarrow \sigma_1 v_1$.
+
 
 \subsection{Online learning for matrix factorization}
 \cite{mairal10}
@@ -297,6 +352,10 @@ basis set: A strategy employed by v1?,” Vision Res., vol. 37, pp.
 
 \bibitem{tseng01}
 P. Tseng, , J. Optim. Theory Appl., 109, 2001, 475-494.
+
+\bibitem{parikh14}
+Proximal Algorithms.
+N Parikh, SP Boyd - Foundations and Trends in optimization, 2014 - web.stanford.edu
 
 \end{thebibliography}
 \end{document}
