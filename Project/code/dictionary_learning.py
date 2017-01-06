@@ -1,10 +1,7 @@
 
 # coding: utf-8
 
-# # Online Matrix Factorization
-
-# Code taken from  
-# http://nbviewer.jupyter.org/github/gpeyre/numerical-tours/blob/master/python/inverse_5_inpainting_sparsity.ipynb
+# # Dictionary learning
 
 get_ipython().magic(u'matplotlib inline')
 get_ipython().magic(u'load_ext autoreload')
@@ -18,7 +15,7 @@ import os.path as op
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
-from sklearn import linear_model
+from sklearn import linear_model, datasets
 
 from nt_toolbox.signal import load_image, imageplot, snr
 from nt_toolbox.general import clamp
@@ -27,7 +24,6 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-# # Dictionary learning
 # TODO: quote the matlab numerical tour
 
 def damage_image(image):
@@ -202,15 +198,23 @@ plt.figure(figsize = (6,6))
 imageplot(f0, 'Image f_0')
 
 
-width = 10
+width = 2
 signal_size = width*width
 n_atoms = 2*signal_size
-n_test = 20*n_atoms
-k = 4
+n_samples = 20*n_atoms
+k = 4 # Desired sparsity
+
+
+Y_test, D0, X0 = datasets.make_sparse_coded_signal(n_samples, n_atoms, signal_size, k, random_state=0)
+D = np.random.random(D0.shape)
+
+
+omp = linear_model.OrthogonalMatchingPursuit(k, fit_intercept=False)
 
 
 D0 = high_energy_random_dictionary(f0, width, n_atoms)
-Y_test = random_dictionary(f0, width, n_test)
+Y_test = random_dictionary(f0, width, n_samples)
+Y_test = center(Y_test) # TODO: Center because the dictionary is centered and no intercept
 
 
 # # Numerical tour approach
@@ -219,7 +223,7 @@ n_iter_learning = 100
 n_iter_dico = 50
 n_iter_coef = 100
 E = np.zeros(2*n_iter_learning)
-X = np.zeros((n_atoms, n_test))
+X = np.zeros((n_atoms, n_samples))
 D = D0
 for i in tqdm(range(n_iter_learning)):
     # --- coefficient update ----
@@ -240,9 +244,9 @@ E_plot = E[start:]
 plt.plot(range(E_plot.shape[0]), E_plot)
 index_coef = list(range(0, E_plot.shape[0], 2))
 index_dico = list(range(1, E_plot.shape[0], 2))
-#plt.plot(index_coef, E_plot[index_coef], '*', markersize=3, label='After coefficient update')
-#plt.plot(index_dico, E_plot[index_dico], 'o', markersize=3, label='After dictionary update')
-#plt.legend(numpoints=1)
+plt.plot(index_coef, E_plot[index_coef], '*', markersize=3, label='After coefficient update')
+plt.plot(index_dico, E_plot[index_dico], 'o', markersize=3, label='After dictionary update')
+plt.legend(numpoints=1)
 plt.xlabel('iterations')
 plt.ylabel('Error: $||Y-DX||^2$')
 plt.title('Projected gradient descent')
@@ -265,7 +269,7 @@ min(E)
 # From "Online Learning for Matrix Factorization and Sparse Coding"  
 # LARS-Lasso from LEAST ANGLE REGRESSION, Efron et al http://statweb.stanford.edu/~tibs/ftp/lars.pdf
 
-n_iter = 5*n_test
+n_iter = 5*n_samples
 test_interval = 1000
 lambd = 0.01 # L1 penalty coefficient for sparse coding
 lasso = linear_model.Lasso(lambd, fit_intercept=False) # TODO: use lars instead of lasso
@@ -277,7 +281,7 @@ B = np.zeros((signal_size,n_atoms))
 sparsity = []
 E = []
 Y_test = random_dictionary(f0, width, 20*n_atoms)
-X = np.zeros((n_atoms, n_test))
+X = np.zeros((n_atoms, n_samples))
 
 
 for i in tqdm(range(n_iter)):
