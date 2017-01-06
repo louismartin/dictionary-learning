@@ -23,6 +23,7 @@
 \DeclarePairedDelimiter\abs{\lvert}{\rvert} % abs
 \DeclarePairedDelimiter\norm{\lVert}{\rVert} % norm
 \DeclareMathOperator*{\argmin}{arg\,min} % argmin
+\DeclareMathOperator*{\argmax}{arg\,max} % argmax
 
 \title{P3 - Dictionary learning, application to denoising and inpainting}
 
@@ -87,7 +88,7 @@ The choice of the space in which the sparse representation lives is important.
 The problem is often reduced to finding a good basis for this space.
 It can be either be predefined or learned.
 
-One can use a predefined basis which will be fixed for all tasks and datasets such as the Fourier basis or the wavelet basis thanks to \cite{mallat1999}.
+One can use a predefined basis which will be fixed for all tasks and datasets such as the Fourier basis or the wavelet basis thanks to \cite{mallat99}.
 The fact that such a basis does not depend on the data makes it hard to design but also powerful because it can be reused for and define a standard.
 The good sparse representation of natural images in the wavelet space led to the success of the JPEG2000 algorithm for image compression, see \cite{marcellin00}.
 
@@ -145,6 +146,16 @@ The problem now rewrites:
 \min\limits_{D \in \mathcal{D}, X \in \chi_k} E(X,D) = \min\limits_{D \in \mathcal{D}, X \in \chi_k} \norm{Y - DX}_F^2
 \end{equation}
 
+In order to use proximal methods we can also rewrite \label{eq:1} by:
+$$\min E(X,D) + \iota_{\chi_k}(X) + \iota_{\mathcal{D}}(D)$$
+with $\iota_C$ the indicator of $C$ defined by
+$ \iota_C(x) =
+\begin{cases}
+0, & \text{if } x \in C\\
++ \infty, & \text{otherwise}
+\end{cases}
+$
+
 \subsection{Splitting the dictionary learning task into two subproblems}
 Minimizing \ref{eq:1} both over $D$ and $X$ jointly is often not feasible.
 That is why many approach split it into two subproblems that can be solved iteratively.
@@ -152,9 +163,20 @@ The first is to sparse code the data given the dictionary and the second to upda
 
 \subsubsection{Finding the sparse representation}
 This subproblem writes:
-\begin{equation} \label{eq:1}
+\begin{equation} \label{eq:2}
 X \in \argmin_{X \in \chi_k} \norm{Y - DX}^2
 \end{equation}
+Equation \ref{eq:2} is typically solved by iterating over X until we have a solution that yields a small enough error $E(X,D)$.
+
+There is a whole range of pursuit algorithms that use this approach.
+
+Matching pursuit was introduced by \cite{mallat93} and successfully applied to signal decomposition.
+The algorithm finds for each signal $y$, the atom $d_i$ which captures the most energy in the sense that
+$$d_i = \argmax_{d_i \in D} |<y, d_i>|$$.
+The corresponding coefficient is then set to $$x_i = \frac{<y, d_i>}{\norm{d_i}^2}$$ and the captured information is removed from $y$ so that $$y \leftarrow y - x_i d_i$$.
+This process is repeated until we reach the wanted sparsity or until the error is below a specified threshold.
+A pop
+
 MP OMP FOCUSS \cite{gorodnitsky97} PGD
 Wikipedia -> A popular extension of Matching Pursuit (MP) is its orthogonal version: Orthogonal Matching Pursuit[11][12] (OMP). The main difference from MP is that after every step, all the coefficients extracted so far are updated, by computing the orthogonal projection of the signal onto the set of atoms selected so far. This can lead to better results than standard MP, but requires more computation.
 \subsubsection{Finding the dictionary}
@@ -186,21 +208,28 @@ Sparse coding the vector and updating the dictionary given this sparse represent
 % TODO:
 \cite{olshausen97} (k-SVD p-4313 [24])
 
-A simple and efficient algorithm for dictionary learning is to use a gradient descent approach as in implemented in \cite{nt4}.
+A simple and efficient algorithm for dictionary learning is to use a block coordinate gradient descent approach as in implemented in \cite{nt4} and is shown to converge in \cite{tseng01}.
 This is a two step algorithm.
 We initialize $n$ training signals $(y_i \in \RR^m)_{i=1}^{n}$
 that we put in a matrix $Y \in \RR^{m \times n}, Y = [y_1 \ldots y_n]$.
+\begin{itemize}
+  \item First we find the best sparse representation of the data given a fixed dictionary.
+  	\begin{equation} \label{eq:pgd1}
+      X^{(i+1)} \in \argmin_{X \in \chi_k} \norm{Y - D^{(i)}X}^2
+	\end{equation}
+  \item Then we update the dictionary given this sparse representation.
+  	\begin{equation} \label{eq:pgd2}
+      D^{(i+1)} \in \argmin_{D \in \mathcal{D}} \norm{Y - DX^{(i+1)}}^2
+	\end{equation}
+\end{itemize}
+Solving \ref{eq:pgd1} can be done using the Forward-Backward algorithm.
+\ref{eq:pgd1} can be rewritten as $\argmin E(X,D) + \iota_{\chi_k}$
 
-First we find the best sparse representation of the data given a fixed dictionary.
-$$ X^{(i+1)} \in \argmin_{X \in \chi_k} \norm{Y - D^{(i)}X}^2 $$
-where $\chi_k = \{ X \in \RR^{p \times n}, \norm{X}_0<k \}$.
 
-Then we update the dictionary given this sparse representation.
-$$ D^{(i+1)} \in \argmin_{D \in \mathcal{D}} \norm{Y - DX^{(i+1)}}^2 $$
-where $\mathcal{D} = \{ D \in \RR^{m \times p}, \forall i=1 \ldots p, \norm{D_{\cdot,i}} \leq 1 \}$, the constraint for unit norm atoms in the dictionary.
+Deriving $E(X,D)$ with respect to X and D gives us the following update formulas:
 
-
-$$ D^{(i+1)} = D^{(i)} - \tau (D^{(i)}X - Y) X^T $$
+$$ X^{(i+1)} = X^{(i)} - \gamma D^T (D^{(i)}X^{(i)} - Y) $$
+$$ D^{(i+1)} = D^{(i)} - \tau (D^{(i)}X^{(i+1)} - Y) X^T $$
 
 \begin{algorithm}
 \caption{Projected gradient descent}\label{pgd}
@@ -243,10 +272,12 @@ First filters of neural networks -> looks like a dictionary
   % http://www.cs.technion.ac.il/~elad/publications/journals/2004/32_KSVD_IEEE_TSP.pdf
 
  %TODO: beautify
-\bibitem{mallat1999}
+\bibitem{mallat99}
 . Mallat. A Wavelet Tour of Signal Processing, Second Edition. Academic Press, New York,
 September 1999.
 
+\bibitem{mallat93}
+%http://www.cmap.polytechnique.fr/~mallat/papiers/MallatPursuit93.pdf
 
 \bibitem{marcellin00}
 M. W. Marcellin, M. J. Gormish, A. Bilgin, and M. P. Boliek, “An
@@ -263,6 +294,9 @@ basis set: A strategy employed by v1?,” Vision Res., vol. 37, pp.
 
 \bibitem{nt4}
 %https://github.com/gpeyre/numerical-tours/blob/master/matlab/sparsity_4_dictionary_learning.ipynb
+
+\bibitem{tseng01}
+P. Tseng, , J. Optim. Theory Appl., 109, 2001, 475-494.
 
 \end{thebibliography}
 \end{document}
