@@ -60,6 +60,8 @@ i.e. how well the sparse coded signal will represent the original signal.
 The learning process is therefore a key step for sparse representation.
 % TODO:
 %% What solution(s) is proposed ?
+We propose to study and conpare three different approaches to dictionary learning.
+An intuitive block coordinate gradient descent
 %% Which contributions (theory, numerics, etc) ?
 
 \end{abstract}
@@ -161,6 +163,13 @@ Minimizing \ref{eq:1} both over $D$ and $X$ jointly is often not feasible.
 That is why many approach split it into two subproblems that can be solved iteratively.
 The first is to sparse code the data given the dictionary and the second to update the dictionary given this sparse coding.
 
+% TODO:
+ A natural approach to solving
+this problem is to alternate between the two variables, minimizing over one while keeping the other
+one fixed, as proposed by Lee et al. (2007) (see also Engan et al. 1999 and Aharon et al. 2006, who
+use $l_0$ rather than $l_1$ penalties, or Zou et al. 2006 for the problem of sparse principal component
+analysis).4
+
 \subsubsection{Finding the sparse representation}
 This subproblem writes:
 \begin{equation} \label{eq:2}
@@ -175,7 +184,10 @@ The algorithm finds for each signal $y$, the atom $d_i$ which captures the most 
 $$d_i = \argmax_{d_i \in D} |<y, d_i>|$$.
 The corresponding coefficient is then set to $$x_i = \frac{<y, d_i>}{\norm{d_i}^2}$$ and the captured information is removed from $y$ so that $$y \leftarrow y - x_i d_i$$.
 This process is repeated until we reach the wanted sparsity or until the error is below a specified threshold.
-A pop
+
+% TODO: (mairal10a)
+A number of recent methods for solving this type of problems are based on coordinate
+descent with soft thresholding (Fu, 1998; Friedman et al., 2007; Wu and Lange, 2008).
 
 MP OMP FOCUSS \cite{gorodnitsky97} PGD
 Wikipedia -> A popular extension of Matching Pursuit (MP) is its orthogonal version: Orthogonal Matching Pursuit[11][12] (OMP). The main difference from MP is that after every step, all the coefficients extracted so far are updated, by computing the orthogonal projection of the signal onto the set of atoms selected so far. This can lead to better results than standard MP, but requires more computation.
@@ -204,11 +216,18 @@ Most of the iterative methods are composed of the two steps defined above.
 Sparse coding the vector and updating the dictionary given this sparse representation.
 
 
-\subsection{Block coordinate projected gradient descent}
+\subsection{Proximal methods}
 % TODO:
 \cite{olshausen97} (k-SVD p-4313 [24])
+% TODO:
+In the case of dictionary learning, the classical projected first-order projected stochastic gradient
+descent algorithm (as used by Aharon and Elad 2008; Kavukcuoglu et al. 2008 for instance) consists
+of a sequence of updates of D:
 
-A simple and efficient algorithm for dictionary learning is to use a block coordinate gradient descent approach as in implemented in \cite{nt4} and is shown to converge in \cite{tseng01}.
+
+
+A intuitive and efficient algorithm for dictionary learning is to use a block coordinate gradient descent approach as in implemented in \cite{nt4} and is shown to converge in \cite{tseng01}.
+This algorithm is part of the category of proximal methods and has gained substantial attention in signal processing \cite{combettes11}.
 This is a two step algorithm.
 We initialize $n$ training signals $(y_i \in \RR^m)_{i=1}^{n}$
 that we put in a matrix $Y \in \RR^{m \times n}, Y = [y_1 \ldots y_n]$.
@@ -225,7 +244,7 @@ that we put in a matrix $Y \in \RR^{m \times n}, Y = [y_1 \ldots y_n]$.
 
 
 \subsubsection*{Forward-Backward algorithm}
-\ref{eq:pgd1} and \ref{eq:pgd2} can be solved using the Forward-Backward proximal algorithm which is detailed in \cite{parikh14} and in the class lectures.
+\ref{eq:pgd1} and \ref{eq:pgd2} can be solved using the Forward-Backward proximal algorithm which is detailed in \cite{combettes11}, \cite{parikh14} and in the class lectures.
 We have
 \begin{equation*}
 \begin{split}
@@ -237,10 +256,10 @@ x^* \in \argmin_x F(x) + G(x) & \Longleftrightarrow 0 \in \nabla F(x^*) + \parti
 
 The Forward-Backward update thus reads
 $$x^{(i+1)} = Prox_{\gamma G} (x^{(i)} - \gamma \nabla F(x^{(i)})$$
-with the proximal operator being
+with the proximal operator being an natural extension of the projection on a convex set.
 $$Prox_{\gamma G}(x) = \argmin_z \frac{1}{2} \norm{x - z}^2 + \gamma G(z)$$
 
-Recall that if $G = \iota_C$ then
+When $G = \iota_C$ then the proximal operator is the projection on the convex set C.
 $$Prox_{\gamma G}(x) = \argmin_{z \in C} \norm{x - z} = \Pi_C(x)$$
 In this special case, Forward-Back is equivalent to \emph{projected gradient descent}
 
@@ -265,7 +284,7 @@ $$ D^{(i+1)} = D^{(i)} - \tau (D^{(i)}X^{(i+1)} - Y) X^T $$
 \begin{figure}[!htbp]
 \centering
   \includegraphics[width=\linewidth]{projected_gradient_descent.png}
-\end{figure}
+\end{figure}0
 
 \subsection{K-SVD}
 The approach in \cite{aharon06} is interesting in the way that it considers the dictionary learning problem as a generalization of a clustering problem. Clustering is indeed an extreme case of sparse coding where there is only one non-zero coefficient and this coefficient must be one.
@@ -281,7 +300,7 @@ Each column $d_k$ of the dictionary is updated independently takes to a good dec
 \end{equation}
 
 We will then subset these matrices to only keep the parts that use the column $d_k$.
-That is why the ensemble $\omega_k = \{i | i = 1 \ldots N x^k(i) \neq 0\}$, is introduced. It denotes the indices of the samples that use the atom $d_k$.
+That is why the ensemble $\omega_k = \{i | i = 1 \ldots N, x^k(i) \neq 0\}$, is introduced. It denotes the indices of the samples that use the atom $d_k$.
 Using this ensemble we can construct the matrix $\Omega_k \in N \times |\omega_k|$ with ones at the $(\omega_k(i),i)$ coordinates and zeros everywhere else.
 
 This matrix will subset the problem to only the values concerned by the update of the column $d_k$.
@@ -298,11 +317,42 @@ We can now rewrite the minimization of the error defined in \ref{eq:ksvd1} as
 Note that we optimize on both $d_k$ and $x^k_R$ at the same time. The restriction of $x^k$ to $x^k_R$ also forces it to have the same support before and after the update so that we don't need to explicitely enforce the sparsity constraint.
 This basically boils down to finding the best rank one matrix approximation of $E_k^R$.
 With $E_k^R = U \Delta V^T$ being the SVD decomposition of $E_k^R$, Eckart–Young–Mirsky theorem states that $\sigma_1 u_1 v_1^T$ is the best rank one approximation of $E_k^R$.\\
-The update rule is thus $d_k \leftarrow u_1$ and $x^k_R \leftarrow \sigma_1 v_1$.
+The update rule is therefore $d_k \leftarrow u_1$ and $x^k_R \leftarrow \sigma_1 v_1$.
+This step is repeated for all the columns as it is done for the means in K-means thus the name K-SVD.
 
 
 \subsection{Online learning for matrix factorization}
 \cite{mairal10}
+\ref{eq:1} can be interpreted as a matrix factorization problem. Indeed we try to find a factorization of $Y$ in the form $DX$.
+When confronted with a very large number of samples $N$, it is impractical to work directly with the $Y$ and $X$ matrices. That is why this paper proposes to solve the problem iteratively, sample by sample in an online fashion. Online learning also reduces overfitting if given a big enough dataset.
+
+The method proposed draws random samples as in stochastic gradient descent, derive its sparse representation and then updates the dictionary.
+However the objective is to not only update the dictionary based on the current sample but also on all the samples that we previously considered in order to have a more substantial update.
+The sparse coding step is done using the $l_1$ penalty with LARS-lasso algorithm from \cite{efron04}.
+
+Let's rewrite the update rule in a form that will lead to an efficient algorithm.
+\begin{equation*}
+\begin{split}
+  D_t & = \argmin_{D \in \mathcal{D}} \frac{1}{t} \sum\limits_{i=1}^t (\frac{1}{2} \norm{y_i - D x_i}_2^2 + \lambda \norm{x_i}_1)\\
+      & = \argmin_{D \in \mathcal{D}} \frac{1}{t}  (\frac{1}{2} \norm{Y_t - DX_t}_F^2 + \lambda \norm{X_t}_{1,1})\\
+      & = \argmin_{D \in \mathcal{D}} \frac{1}{t}  (\frac{1}{2} \norm{Y_t - DX_t}_F^2) \text{   ($\norm{X_t}_{1,1}$ does not depend on $D$)}\\
+      & = \argmin_{D \in \mathcal{D}} \frac{1}{t}  (\frac{1}{2} Tr((Y_t - DX_t)^T (Y_t - DX_t)))\\
+      & = \argmin_{D \in \mathcal{D}} \frac{1}{t}  (\frac{1}{2} Tr(Y_t Y_t^T) - Tr(X_t^T D^T Y_t) + \frac{1}{2} Tr(X_t^T D^T D X_t))\\
+      & = \argmin_{D \in \mathcal{D}} \frac{1}{t}  (\frac{1}{2} Tr(D^T D X_t X_t^T) - Tr(D^T Y_t X_t^T) )\\
+      & = \argmin_{D \in \mathcal{D}} \frac{1}{t}  (\frac{1}{2} Tr(D^T D A_t) - Tr(D^T B_t) )
+\end{split}
+\end{equation*}
+
+We can decompose $A_t$ and $B_t$ as follows:
+$$ A_t = \sum\limits_{i=1}^t x_i x_i^T \text{ and } B_t = \sum\limits_{i=1}^t y_i x_i^T $$
+We can therefore update $A_t$ and $B_t$ for each sample and not compute them from scratch every time.
+
+We can then update each column independently with:
+$$ u_j \leftarrow \frac{1}{A[j,j](b_j - D a_j) + d_j} $$
+$$ d_j \leftarrow \frac{1}{\max(\norm{u_j}_2, 1)} u_j $$
+
+% TODO:
+This algorithm is shown to converge to a solution $D^*$ and note that it does not depend on any paramater such as a learning rate.
 
 \section{Conclusion}
 %% Conclusion and perspective (~1 page)
@@ -321,10 +371,7 @@ First filters of neural networks -> looks like a dictionary
   % http://www.di.ens.fr/~fbach/mairal10a.pdf
 
 \bibitem{aharon06}
-  M. Aharon, M. Elad, A. Bruckstein,
-  \emph{K-SVD: An Algorithm for Designing Overcomplete Dictionaries for Sparse Representation},
-  IEEE transactions on signal processing, VOL. 54, NO. 11, November 2006.
-  % http://www.cs.technion.ac.il/~elad/publications/journals/2004/32_KSVD_IEEE_TSP.pdf
+  Aharon, Michal, Michael Elad, and Alfred Bruckstein. "K-SVD: An Algorithm for Designing Overcomplete Dictionaries for Sparse Representation." IEEE Transactions on signal processing 54.11 (2006): 4311-4322.
 
  %TODO: beautify
 \bibitem{mallat99}
@@ -356,6 +403,12 @@ P. Tseng, , J. Optim. Theory Appl., 109, 2001, 475-494.
 \bibitem{parikh14}
 Proximal Algorithms.
 N Parikh, SP Boyd - Foundations and Trends in optimization, 2014 - web.stanford.edu
+
+\bibitem{efron04}
+Efron, Bradley, et al. "Least angle regression." The Annals of statistics 32.2 (2004): 407-499.
+
+\bibitem{combettes11}
+Combettes, Patrick L., and Jean-Christophe Pesquet. "Proximal splitting methods in signal processing." Fixed-point algorithms for inverse problems in science and engineering. Springer New York, 2011. 185-212.
 
 \end{thebibliography}
 \end{document}
