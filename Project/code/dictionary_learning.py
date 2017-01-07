@@ -147,6 +147,29 @@ def sparse_code_lasso(Y, D, model):
     X = lasso.fit(D, Y).coef_.T
     return X
 
+def dictionary_update_ksvd(Y, D, X):
+    (signal_size, n_atoms) = D.shape
+    (_, n_samples) = Y.shape
+
+    for k in tqdm(n_atoms):
+        dk = D[:,k].reshape((signal_size, 1))
+        xk = X[k,:].reshape((1, n_samples))  # Careful, this is the kth ROW and not kth column
+
+        # Error part that does not depend on dk
+        Ek = Y - (np.dot(D,X) - (np.dot(dk,xk)))
+
+        # Samples that use atom dk
+        omega_k = np.where(xk != 0)[1]
+        xk_R = xk[:,omega_k]
+        Ek_R = Ek[:,omega_k]
+        U, s, V = np.linalg.svd(Ek_R)
+
+        # Update dk column and xk row
+        D[:,k] = U[:,0]
+        X[k,omega_k] = s[0] * V[:,0]
+
+    return D, X
+
 def dictionary_update_pgd(Y, D, X, n_iter=50):
     tau = 1/np.linalg.norm(np.dot(X, X.T)) # TODO: Improve tau ? (compare with nt)
     for i in range(n_iter):
@@ -182,7 +205,7 @@ def dictionary_update_omf(D, A, B):
     return D
 
 def reconstruction_error(Y, D, X):
-    error = np.linalg.norm(Y_test - np.dot(D, X))**2
+    error = np.linalg.norm(Y - np.dot(D, X))**2
     return error
 
 
@@ -198,14 +221,14 @@ plt.figure(figsize = (6,6))
 imageplot(f0, 'Image f_0')
 
 
-width = 2
+width = 10
 signal_size = width*width
 n_atoms = 2*signal_size
 n_samples = 20*n_atoms
 k = 4 # Desired sparsity
 
 
-Y_test, D0, X0 = datasets.make_sparse_coded_signal(n_samples, n_atoms, signal_size, k, random_state=0)
+Y, D0, X0 = datasets.make_sparse_coded_signal(n_samples, n_atoms, signal_size, k, random_state=0)
 D = np.random.random(D0.shape)
 
 
@@ -213,11 +236,23 @@ omp = linear_model.OrthogonalMatchingPursuit(k, fit_intercept=False)
 
 
 D0 = high_energy_random_dictionary(f0, width, n_atoms)
-Y_test = random_dictionary(f0, width, n_samples)
-Y_test = center(Y_test) # TODO: Center because the dictionary is centered and no intercept
+Y = random_dictionary(f0, width, n_samples)
+Y = center(Y) # TODO: Center because the dictionary is centered and no intercept
 
 
-# # Numerical tour approach
+# # K-SVD
+# 
+# Aharon, Michal, Michael Elad, and Alfred Bruckstein. "K-SVD: An Algorithm for Designing Overcomplete Dictionaries for Sparse Representation." IEEE Transactions on signal processing 54.11 (2006): 4311-4322.
+
+
+
+
+# # Forward Backward
+# 
+# Combettes, Patrick L., and Jean-Christophe Pesquet. "Proximal splitting methods in signal processing." Fixed-point algorithms for inverse problems in science and engineering. Springer New York, 2011. 185-212.  
+# 
+# Adapted from
+# http://nbviewer.jupyter.org/github/gpeyre/numerical-tours/blob/master/matlab/sparsity_4_dictionary_learning.ipynb
 
 n_iter_learning = 100
 n_iter_dico = 50
@@ -227,11 +262,11 @@ X = np.zeros((n_atoms, n_samples))
 D = D0
 for i in tqdm(range(n_iter_learning)):
     # --- coefficient update ----
-    X = sparse_code_pgd(Y_test, D, X, sparsity=k, n_iter=n_iter_coef)
-    E[2*i] = reconstruction_error(Y_test, D, X)
+    X = sparse_code_pgd(Y, D, X, sparsity=k, n_iter=n_iter_coef)
+    E[2*i] = reconstruction_error(Y, D, X)
     # --- dictionary update ----
-    D = dictionary_update_pgd(Y_test, D, X, n_iter=n_iter_dico)
-    E[2*i+1] = reconstruction_error(Y_test, D, X)
+    D = dictionary_update_pgd(Y, D, X, n_iter=n_iter_dico)
+    E[2*i+1] = reconstruction_error(Y, D, X)
 
 
 # Plot
@@ -262,8 +297,6 @@ plot_dictionary(D)
 plt.title('D')
 plt.show()
 
-min(E)
-
 
 # # Online dictionary learning
 # From "Online Learning for Matrix Factorization and Sparse Coding"  
@@ -280,14 +313,14 @@ B = np.zeros((signal_size,n_atoms))
 
 sparsity = []
 E = []
-Y_test = random_dictionary(f0, width, 20*n_atoms)
+Y = random_dictionary(f0, width, 20*n_atoms)
 X = np.zeros((n_atoms, n_samples))
 
 
 for i in tqdm(range(n_iter)):
     # Draw 1 random patch y and get its sparse coding
     #y = random_dictionary(f0, width, n_atoms=1)
-    y = Y_test[:,np.random.randint(Y_test.shape[1])].reshape((signal_size,1))
+    y = Y[:,np.random.randint(Y.shape[1])].reshape((signal_size,1))
     x = lasso.fit(D, y).coef_.reshape((n_atoms,1))
     A += np.dot(x,x.T)
     B += np.dot(y,x.T)
@@ -297,8 +330,8 @@ for i in tqdm(range(n_iter)):
     
     if i%test_interval == 0:
         # Evaluation:
-        X = sparse_code_pgd(Y_test, D, X, sparsity=4, n_iter=100)
-        E.append(reconstruction_error(Y_test, D, X))
+        X = sparse_code_pgd(Y, D, X, sparsity=4, n_iter=100)
+        E.append(reconstruction_error(Y, D, X))
         #sparsity.append(np.mean(np.sum(X!=0, axis=0)))
 
 
@@ -329,6 +362,29 @@ with shelve.open(filename,'n') as shelf: # 'n' for new
             # __builtins__, my_shelf, and imported modules can not be shelved.
             #
             print('ERROR shelving: {0}'.format(key))
+
+
+
+
+
+
+
+
+
+
+
+import numpy as np
+x1 = np.array([[1,2,3]]).T
+x2 = np.array([[2,2,2]]).T
+X = np.array(np.hstack((x1,x2)))
+print(X.T)
+print(X)
+print(X.shape)
+print(np.dot(X, X.T))
+print(np.dot(x1,x1.T)+np.dot(x2,x2.T))
+
+
+print(np.dot(x1,x1.T))
 
 
 
