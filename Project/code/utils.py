@@ -73,27 +73,27 @@ def reconstruction_error(Y, D, X):
 def plot_error(E, title='Reconstruction error', burn_in=None, filename=None):
     if burn_in:
         # Remove first points (burn in)
-        assert burn_in % 2 == 0
-        E = E[burn_in:]
+        E = E[2*burn_in:]
 
-    index = np.divide(range(E.shape[0]), 2)
+    E = np.log10(E)
+    index = list(range(E.shape[0]))
     index_coef = list(range(0, E.shape[0], 2))
     index_dict = list(range(1, E.shape[0], 2))
-    plt.plot(index, E)
+    plt.plot(np.divide(index, 2), E)
     plt.plot(np.divide(index_coef, 2), E[index_coef],
-             '*', markersize=3, label='After coefficient update')
+             '*', markersize=7, label='After coefficient update')
     plt.plot(np.divide(index_dict, 2), E[index_dict],
-             'o', markersize=3, label='After dictionary update')
+             'o', markersize=5, label='After dictionary update')
     plt.legend(numpoints=1)
-    plt.xlabel('iterations')
-    plt.ylabel('Error: $||Y-DX||^2$')
+    plt.xlabel('Iterations')
+    plt.ylabel('Error: $\log(||Y-DX||^2)$')
     plt.title(title)
     if filename:
         plt.savefig(filename)
     plt.show()
 
 
-def plot_dictionary(D):
+def plot_dictionary(D, title='Dictionary'):
     ''' Plot a dictionary of shape (width*width, n_atoms) '''
     # Check that D.shape == (width*width, n_atoms)
     assert len(D.shape) == 2
@@ -117,3 +117,5 @@ def plot_dictionary(D):
     D = D.reshape(big_image_size, big_image_size)
     plt.figure(figsize=(8, 12))
     imageplot(D)
+    plt.title(title)
+    plt.show()
