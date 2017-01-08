@@ -19,239 +19,23 @@ from sklearn import linear_model, datasets
 
 from nt_toolbox.signal import load_image, imageplot, snr
 from nt_toolbox.general import clamp
+from utils import (random_dictionary, high_energy_random_dictionary,
+                  center, scale, reconstruction_error, plot_error, plot_dictionary)
+from dictionary_learning import (dictionary_update_ksvd, sparse_code_lasso, dictionary_update_omf,
+                                 sparse_code_fb, dictionary_update_fb)
 
 import warnings
 warnings.filterwarnings('ignore')
 
 
-# # Methods
-
-# ### Tools
-
-def random_dictionary(image, width, n_atoms):
-    '''
-    Takes an image as input and returns a dictionary
-    of shape (width*width, n_atoms)
-    '''
-    assert image.shape[0] == image.shape[1]
-    n0 = image.shape[0]
-    
-    # Random sampling of coordinates of the top left corner or the patches
-    x = (np.random.random((1,1,n_atoms))*(n0-width)).astype(int)
-    y = (np.random.random((1,1,n_atoms))*(n0-width)).astype(int)
-    
-    # Extract patches
-    [dY,dX] = np.meshgrid(range(width), range(width))
-    dX = np.tile(dX, (n_atoms,1,1)).transpose((1,2,0))
-    dY = np.tile(dY, (n_atoms,1,1)).transpose((1,2,0))
-    Xp = np.tile(x, (width,width,1)) + dX
-    Yp = dY + np.tile(y, (width,width,1))
-    D = image.flatten()[Yp+Xp*n0]
-    D = D.reshape((width*width,n_atoms)) # Reshape from (w,w,q) to (w*w,q)
-    return D
-
-
-def center(D):
-    '''
-    Takes a Dictionary of shape (signal_size, n_atoms) and
-    substract the signal-wise mean.
-    '''
-    assert len(D.shape) == 2
-    D -= D.mean(axis=0)
-    return D
-
-
-def scale(D):
-    ''' Scale the dictionary atoms to unit norm '''
-    assert len(D.shape) == 2
-    norm = np.tile(np.linalg.norm(D, axis=0), (D.shape[0],1))
-    D = np.divide(D, norm)
-    return D
-
-
-def high_energy_random_dictionary(image, width, n_atoms):
-    '''
-    Initialize a random dictionary with high energy centered and 
-    normalized atoms  of size (width*width, n_atoms)
-    '''
-    m = 20*n_atoms
-    q = 3*m
-    D = random_dictionary(image, width, q)
-    D = center(D)
-    # Keep patches with highest energy
-    energies = np.sum(D**2, axis=0)
-    Indexes = np.argsort(energies)[::-1]
-    D = D[:,Indexes[:m]]
-    # Select a random subset of these patches
-    sel = np.random.permutation(range(m))[:n_atoms]
-    D = D[:,sel]
-    D = scale(D)
-    return D
-
-
-def reconstruction_error(Y, D, X):
-    error = np.linalg.norm(Y - np.dot(D, X))**2
-    return error
-
-
-def plot_dictionary(D):
-    ''' Plot a dictionary of shape (width*width, n_atoms) '''
-    # Check that D.shape == (width*width, n_atoms)
-    assert len(D.shape) == 2
-    assert int(np.sqrt(D.shape[0]))**2 == D.shape[0]
-    (signal_size, n_atoms) = D.shape
-    width = int(np.sqrt(D.shape[0]))
-    D = D.reshape((width,width,n_atoms))
-    n = int(np.ceil(np.sqrt(n_atoms))) # Size of the plot square in number of atoms
-
-    # Pad the atoms
-    pad_size = 1
-    missing_atoms = n ** 2 - n_atoms
-
-    padding = (((pad_size, pad_size), (pad_size, pad_size),
-                (0, missing_atoms)))
-    D = np.pad(D, padding, mode='constant', constant_values=1)
-    padded_width = width + 2*pad_size
-    D = D.reshape(padded_width,padded_width,n,n)
-    D = D.transpose(2,0,3,1) # Needed for the reshape
-    big_image_size = n*padded_width
-    D = D.reshape(big_image_size, big_image_size)
-    plt.figure(figsize=(8,12))
-    imageplot(D)
-
-
-def plot_error(E, title='Reconstruction error', burn_in=None, filename=None):
-    if burn_in:
-        # Remove first points (burn in)
-        assert burn_in%2==0
-        E = E[burn_in:]
-
-    index = np.divide(range(E.shape[0]),2)
-    index_coef = list(range(0, E.shape[0], 2))
-    index_dict = list(range(1, E.shape[0], 2))
-    plt.plot(index, E)
-    plt.plot(np.divide(index_coef,2), E[index_coef], '*', markersize=3, label='After coefficient update')
-    plt.plot(np.divide(index_dict,2), E[index_dict], 'o', markersize=3, label='After dictionary update')
-    plt.legend(numpoints=1)
-    plt.xlabel('iterations')
-    plt.ylabel('Error: $||Y-DX||^2$')
-    plt.title(title)
-    if filename:
-        plt.savefig(filename)
-    plt.show()
-
-
-# ### K-SVD
-
-def dictionary_update_ksvd(Y, D, X):
-    (signal_size, n_atoms) = D.shape
-    (_, n_samples) = Y.shape
-
-    for k in range(n_atoms):
-        dk = D[:,k].reshape((signal_size, 1))
-        xk = X[k,:].reshape((1, n_samples))  # Careful, this is the kth ROW and not kth column
-
-        # Error part that does not depend on dk
-        Ek = Y - (np.dot(D,X) - (np.dot(dk,xk)))
-
-        # Samples that use atom dk
-        omega_k = np.where(xk != 0)[1]
-        xk_R = xk[:,omega_k]
-        Ek_R = Ek[:,omega_k]
-        U, s, V = np.linalg.svd(Ek_R)
-
-        # Update dk column and xk row
-        D[:,k] = U[:,0]
-        X[k,omega_k] = s[0] * V[:,0]
-
-    return D, X
-
-
-# ### Forward-Backward
-
-def ProjX(X,k):
-    ''' Sparsity projection, keeps the k largest coefficients '''
-    X = X * (abs(X) >= np.sort(abs(X), axis=0)[-k,:])
-    return X
-
-
-def ProjC(D):
-    ''' Dictionary projection, scales the atoms '''
-    D = scale(D)
-    return D
-
-
-def sparse_code_fb(Y, D, X, sparsity=4, n_iter=100):
-    '''
-    Sparse code data Y using dictionary D using a forward backward iterative scheme.
-    This is a non-smooth and non-convex minimization, that can be shown to be NP-hard.
-    A heuristic to solve this method is to compute a stationary point of the energy
-    using the Foward-Backward iterative scheme (projected gradient descent).
-    '''
-    gamma = 1/np.linalg.norm(np.dot(D,D.T)) # TODO: Improve gamma ? (compare with nt)
-    for i in range(n_iter):
-        R = np.dot(D, X) - Y
-        X = ProjX(X - gamma * np.dot(D.T, R), sparsity)
-    return X
-
-
-def dictionary_update_fb(Y, D, X, n_iter=50):
-    tau = 1/np.linalg.norm(np.dot(X, X.T)) # TODO: Improve tau ? (compare with nt)
-    for i in range(n_iter):
-        R = np.dot(D, X) - Y
-        D = ProjC(D - tau * np.dot(R, X.T))
-    return D
-
-
-# ### Online matrix factorization
-
-def sparse_code_lasso(Y, D, model):
-    ''' 
-    Sparse code data Y using dictionary D using lasso linear regression
-    Model is a sklearn.linear_model.Lasso lasso model
-    '''
-    X = model.fit(D, Y).coef_.T
-    return X
-
-
-def dictionary_update_omf(D, A, B):
-    '''
-    Algorithm 2 from "Online Learning for Matrix Factorization and Sparse Coding
-    Update the dictionary column by column.
-    Denoting k the number of atoms in the dictionary and m the size of the signal, we have:
-    
-    Args:
-        D: dictionary of size (m,k)
-        A: Matrix of size (k,k)
-        B: Matrix of size (m,k)
-    Returns:
-        D: Updated dictionary of size (m,k)
-    '''
-    (m,k) = D.shape
-    assert A.shape == (k,k)
-    assert B.shape == (m,k)
-    
-    for j in range(k):        
-        uj = (B[:,j]-np.dot(D,A[:,j])) + D[:,j]
-        if A[j,j] != 0:
-            uj /= A[j,j]
-        else:
-            # TODO: What to do when A[j,j] is 0 ?
-            pass
-        D[:,j] = 1/max(np.linalg.norm(uj),1)*uj
-    return D
-
-
 # ## Image and variables
 
 img_size = 256
-filename = 'image.jpg'
-filename = 'barb_crop.png'
 filename = 'lena.bmp'
 f0 = load_image(filename, img_size)
 
-plt.figure(figsize = (6,6))
-imageplot(f0, 'Image f_0')
+#plt.figure(figsize = (6,6))
+#imageplot(f0, 'Image f_0')
 
 
 width = 5
@@ -261,22 +45,20 @@ n_samples = 20*n_atoms
 k = 4 # Desired sparsity
 
 
-Y, D0, X0 = datasets.make_sparse_coded_signal(n_samples, n_atoms, signal_size, k, random_state=0)
-
-
-D0 = high_energy_random_dictionary(f0, width, n_atoms)
-Y = random_dictionary(f0, width, n_samples)
-Y = center(Y) # TODO: Center because the dictionary is centered and no intercept
-
-
-omp = linear_model.OrthogonalMatchingPursuit(k, fit_intercept=False)
+synthetic_data = True
+if synthetic_data:
+    Y, D0, X0 = datasets.make_sparse_coded_signal(n_samples, n_atoms, signal_size, k, random_state=0)
+else:
+    D0 = high_energy_random_dictionary(f0, width, n_atoms)
+    Y = random_dictionary(f0, width, n_samples)
+    Y = center(Y) # TODO: Center because the dictionary is centered and no intercept
 
 
 # # K-SVD
 # 
 # Aharon, Michal, Michael Elad, and Alfred Bruckstein. "K-SVD: An Algorithm for Designing Overcomplete Dictionaries for Sparse Representation." IEEE Transactions on signal processing 54.11 (2006): 4311-4322.
 
-n_iter = 20
+n_iter = 10
 E = np.zeros(2*n_iter)
 X = np.zeros((n_atoms, n_samples))
 D = np.random.random(D0.shape)
@@ -302,7 +84,7 @@ plot_error(E)
 # Adapted from
 # http://nbviewer.jupyter.org/github/gpeyre/numerical-tours/blob/master/matlab/sparsity_4_dictionary_learning.ipynb
 
-n_iter_learning = 10
+n_iter_learning = 5
 n_iter_dico = 50
 n_iter_coef = 100
 E = np.zeros(2*n_iter_learning)
@@ -349,7 +131,7 @@ for i in tqdm(range(n_iter)):
     A += np.dot(x,x.T)
     B += np.dot(y,x.T)
     D = dictionary_update_omf(D, A, B)
-    D = ProjC(D)
+    D = scale(D)
     sparsity.append(np.mean(np.sum(x!=0, axis=0)))
     
     if i%test_interval == 0:
