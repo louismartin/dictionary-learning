@@ -3,6 +3,12 @@ from utils import scale
 
 
 # ----- K-SVD -----
+def sparse_code_omp(Y, D, model):
+    ''' Orthogonal matching pursuit '''
+    X = model.fit(D, Y).coef_.T
+    return X
+
+
 def dictionary_update_ksvd(Y, D, X):
     (signal_size, n_atoms) = D.shape
     (_, n_samples) = Y.shape
@@ -16,10 +22,12 @@ def dictionary_update_ksvd(Y, D, X):
 
         # Samples that use atom dk
         omega_k = np.where(xk != 0)[1]
+        if len(omega_k) == 0:
+            return D, X
         xk_R = xk[:, omega_k]
         Ek_R = Ek[:, omega_k]
         U, s, Vt = np.linalg.svd(Ek_R)
-        V = Vt.T # Numpy returns V.T instead of V
+        V = Vt.T  # Numpy returns V.T instead of V
 
         # Update dk column and xk row
         D[:, k] = U[:, 0]
