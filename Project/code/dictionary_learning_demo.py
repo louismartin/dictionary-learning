@@ -33,6 +33,7 @@ signal_size = width*width
 n_atoms = 2*signal_size
 n_samples = 20*n_atoms
 k = 4 # Desired sparsity
+max_time = 120
 
 
 synthetic_data = True
@@ -99,52 +100,56 @@ get_ipython().magic(u'timeit dictionary_update_fb(Y, D, X_true, n_iter=50)')
 # 
 # Aharon, Michal, Michael Elad, and Alfred Bruckstein. "K-SVD: An Algorithm for Designing Overcomplete Dictionaries for Sparse Representation." IEEE Transactions on signal processing 54.11 (2006): 4311-4322.
 
-# Model for sparse coding
-omp = linear_model.OrthogonalMatchingPursuit(n_nonzero_coefs=k, fit_intercept=False)
-
+# Variables
 n_iter = 100
 D = D0.copy()
 X = X0.copy()
 E = np.zeros(2*n_iter)
-time_coef = []
-time_dict = []
+times = np.zeros(2*n_iter)
+
+# Model for sparse coding
+omp = linear_model.OrthogonalMatchingPursuit(n_nonzero_coefs=k, fit_intercept=False)
+tic = time.time()
 for i in tqdm(range(n_iter)):
     # Sparse coding
-    tic = time.time()
     X = sparse_code_omp(Y, D, omp)
-    time_coef.append(time.time() - tic)
     E[2*i] = reconstruction_error(Y, D, X)
+    times[2*i] = time.time() - tic
 
     # Dictionary update
-    tic = time.time()
     D, X = dictionary_update_ksvd(Y, D, X)
-    time_dict.append(time.time() - tic)
     E[2*i+1] = reconstruction_error(Y, D, X)
-    if np.log10(E[2*i+1]) < 2:
+    times[2*i+1] = time.time() - tic
+    if (time.time() - tic) > max_time:
         break
+
+# Save variables
 E_ksvd = E.copy()
+times_ksvd = times.copy()
 D_ksvd = D.copy()
 
 
-plot_error(E, burn_in=2, filename='images/ksvd_{}_iter_{}'.format(n_iter, 'synthetic' if synthetic_data else 'image'))
+plot_error(E, burn_in=2, filename='images/ksvd_{}_iter_{}.png'.format(n_iter, 'synthetic' if synthetic_data else 'image'))
 #plot_dictionary(D)
 
 
 # # Online dictionary learning
-# From "Online Learning for Matrix Factorization and Sparse Coding"  
-# LARS-Lasso from LEAST ANGLE REGRESSION, Efron et al http://statweb.stanford.edu/~tibs/ftp/lars.pdf
+# Mairal, Julien, et al. "Online learning for matrix factorization and sparse coding." Journal of Machine Learning Research 11.Jan (2010): 19-60.
 
+# Variables
 n_iter = 10*n_samples
-eval_interval = 500
-lambd = 0.02 # L1 penalty coefficient for sparse coding
-
-
+eval_interval = n_samples//2
+D = D0.copy()
+X = X0.copy()
 A = np.zeros((n_atoms,n_atoms))
 B = np.zeros((signal_size,n_atoms))
-
 sparsity = []
 E = []
+times = []
 
+# Model for sparse coding (alpha is the l1 penalty coefficient)
+lasso = linear_model.Lasso(alpha=0.02, fit_intercept=False)
+tic = time.time()
 for i in tqdm(range(n_iter)):
     # Draw 1 sample at random
     rand_idx = np.random.randint(n_samples)
@@ -163,17 +168,23 @@ for i in tqdm(range(n_iter)):
         # Evaluation:
         X = sparse_code_fb(Y, D, X, sparsity=4, n_iter=100)
         E.append(reconstruction_error(Y, D, X))
+        times.append(time.time() - tic)
+        if (time.time() - tic) > max_time:
+            break
     sparsity.append(np.mean(np.sum(x!=0, axis=0)))
+
+# Save errors and dictionary
 E_omf = E.copy()
+times_omf = times.copy()
 D_omf = D.copy()
 
 
 print('Mean sparsity: {}'.format(np.mean(sparsity)))
-plt.plot(range(0, n_iter, eval_interval), E)
-plt.xlabel('Iterations')
-plt.ylabel('Error: $||Y-DX||^2$')
+plt.plot(times, np.log10(E))
+plt.xlabel('Time')
+plt.ylabel('Error: $\log(||Y-DX||^2)$')
 plt.title('Reconstruction error on the test set')
-filename = 'images/omf_{}_iter_{}'.format(n_iter, 'synthetic' if synthetic_data else 'image')
+filename = 'images/omf_{}_iter_{}.png'.format(n_iter, 'synthetic' if synthetic_data else 'image')
 plt.savefig(filename)
 plt.show()
 
@@ -187,22 +198,46 @@ plt.show()
 # Adapted from
 # http://nbviewer.jupyter.org/github/gpeyre/numerical-tours/blob/master/matlab/sparsity_4_dictionary_learning.ipynb
 
-n_iter = 10
-E = np.zeros(2*n_iter_learning)
-X = np.zeros((n_atoms, n_samples))
-D = D0
+# Variables
+n_iter = 100
+E = np.zeros(2*n_iter)
+times = np.zeros(2*n_iter)
+D = D0.copy()
+X = X0.copy()
+tic = time.time()
 for i in tqdm(range(n_iter)):
     # Sparse coding
     X = sparse_code_fb(Y, D, X, sparsity=k, n_iter=100)
     E[2*i] = reconstruction_error(Y, D, X)
+    times[2*i] = time.time() - tic
 
     # Dictionary update
     D = dictionary_update_fb(Y, D, X, n_iter=50)
     E[2*i+1] = reconstruction_error(Y, D, X)
+    times[2*i+1] = time.time() - tic
+    if (time.time() - tic) > max_time:
+        break
+# Save errors and dictionary
 E_fb = E.copy()
+times_fb = times.copy()
 D_fb = D.copy()
 
 
-plot_error(E)
+plot_error(E, burn_in=2)
 #plot_dictionary(D)
+
+
+# ## Comparison
+
+burn_in = 0
+plt.plot(times_ksvd[burn_in:], np.log10(E_ksvd[burn_in:]), label='K-SVD')
+plt.plot(times_omf[burn_in:], np.log10(E_omf[burn_in:]), label='Online matrix factorization')
+plt.plot(times_fb[burn_in:], np.log10(E_fb[burn_in:]), label='Forward-Backward')
+plt.xlabel('Iterations')
+plt.ylabel('Error: $\log(||Y-DX||^2)$')
+plt.legend()
+plt.title('Reconstruction error on the test set')
+filename = 'images/comparison_{}s_{}.png'.format(max_time, 'synthetic' if synthetic_data else 'image')
+plt.savefig(filename)
+plt.show()
 
