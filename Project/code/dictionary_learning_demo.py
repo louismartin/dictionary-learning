@@ -75,33 +75,6 @@ for i in tqdm(range(n_iter)):
 plot_error(E)
 
 
-# # Forward Backward
-# 
-# Combettes, Patrick L., and Jean-Christophe Pesquet. "Proximal splitting methods in signal processing." Fixed-point algorithms for inverse problems in science and engineering. Springer New York, 2011. 185-212.  
-# 
-# Adapted from
-# http://nbviewer.jupyter.org/github/gpeyre/numerical-tours/blob/master/matlab/sparsity_4_dictionary_learning.ipynb
-
-n_iter_learning = 5
-n_iter_dico = 50
-n_iter_coef = 100
-E = np.zeros(2*n_iter_learning)
-X = np.zeros((n_atoms, n_samples))
-D = D0
-for i in tqdm(range(n_iter_learning)):
-    # Sparse coding
-    X = sparse_code_fb(Y, D, X, sparsity=k, n_iter=n_iter_coef)
-    E[2*i] = reconstruction_error(Y, D, X)
-
-    # Dictionary update
-    D = dictionary_update_fb(Y, D, X, n_iter=n_iter_dico)
-    E[2*i+1] = reconstruction_error(Y, D, X)
-
-
-plot_error(E)
-plot_dictionary(D0)
-
-
 # # Online dictionary learning
 # From "Online Learning for Matrix Factorization and Sparse Coding"  
 # LARS-Lasso from LEAST ANGLE REGRESSION, Efron et al http://statweb.stanford.edu/~tibs/ftp/lars.pdf
@@ -152,6 +125,33 @@ plot_dictionary(D)
 plt.title('D')
 plt.show()
 plt.plot(sparsity)
+
+
+# # Forward Backward
+# 
+# Combettes, Patrick L., and Jean-Christophe Pesquet. "Proximal splitting methods in signal processing." Fixed-point algorithms for inverse problems in science and engineering. Springer New York, 2011. 185-212.  
+# 
+# Adapted from
+# http://nbviewer.jupyter.org/github/gpeyre/numerical-tours/blob/master/matlab/sparsity_4_dictionary_learning.ipynb
+
+n_iter_learning = 5
+n_iter_dico = 50
+n_iter_coef = 100
+E = np.zeros(2*n_iter_learning)
+X = np.zeros((n_atoms, n_samples))
+D = D0
+for i in tqdm(range(n_iter_learning)):
+    # Sparse coding
+    X = sparse_code_fb(Y, D, X, sparsity=k, n_iter=n_iter_coef)
+    E[2*i] = reconstruction_error(Y, D, X)
+
+    # Dictionary update
+    D = dictionary_update_fb(Y, D, X, n_iter=n_iter_dico)
+    E[2*i+1] = reconstruction_error(Y, D, X)
+
+
+plot_error(E)
+plot_dictionary(D0)
 
 
 # Save variables
