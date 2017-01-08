@@ -58,10 +58,12 @@ We will here focus how to efficiently learn an appropriate dictionary given the 
 Finding a good dictionary is indeed important because it will define the representational power of the sparse coding,
 i.e. how well the sparse coded signal will represent the original signal.
 The learning process is therefore a key step for sparse representation.
-% TODO:
 %% What solution(s) is proposed ?
-We propose to study and conpare three different approaches to dictionary learning.
-An intuitive block coordinate gradient descent
+We propose to study and compare three different approaches to dictionary learning.
+K-SVD algorithm which is proposed as a generalization of clustering algorithms such as k-means.
+Online matrix factorization which provides an online approach to dictionary learning for big datasets.
+An intuitive block coordinate projected gradient descent which is a specific case of the forward-backward proximal iterave method.
+% TODO:
 %% Which contributions (theory, numerics, etc) ?
 
 \end{abstract}
@@ -69,7 +71,7 @@ An intuitive block coordinate gradient descent
 \section{Introduction}
 %% Introduction (~3 pages) :
 %% Presentation of the problem(s).
-Sparse coding is able to solve multiple signal processing tasks such as compression, inpainting, denoising, texture synthesis and so on.
+Sparse coding is able to solve multiple signal processing tasks such as compression \cite{marcellin00}, inpainting, denoising \cite{elad06}, texture synthesis \cite{peyre09} and so on.
 % Why do we want sparsity, i.e. a small number of non-zero coefficients ?
 % 1) Compression
 Sparsity, i.e. having a small number of non-zero coefficients, is wanted for several of its useful properties.
@@ -85,14 +87,13 @@ Natural image tend to have a small number of non-zero coefficient whereas comple
 % Sparsity is the a good indicator of natural images
 Sparsity is therefore a good indicator of natural images.
 
-%% Previous works (at least a few citations). If relevant, include things that you have seen during the MVA course (or possibly other courses).
-The choice of the space in which the sparse representation lives is important.
-The problem is often reduced to finding a good basis for this space.
-It can be either be predefined or learned.
+Given that having a sparse representation is useful, we want to pay particular attention to the choice of the space in which this representation lives.
+The problem is often translated to finding a good basis for this space.
+This basis of interest can either be predefined or learned.
 
 One can use a predefined basis which will be fixed for all tasks and datasets such as the Fourier basis or the wavelet basis thanks to \cite{mallat99}.
-The fact that such a basis does not depend on the data makes it hard to design but also powerful because it can be reused for and define a standard.
-The good sparse representation of natural images in the wavelet space led to the success of the JPEG2000 algorithm for image compression, see \cite{marcellin00}.
+The fact that such a basis does not depend on the data makes it hard to design but also powerful because it is universal can be reused and define a standard.
+For example a good sparse representation of natural images in the wavelet space led to the success of the JPEG2000 algorithm for image compression, see \cite{marcellin00}.
 
 Another approach is to learn the basis, which is what we will focus on in this paper.
 From this point on we will interpret this basis as a dictionary for reasons that we will explain later.
@@ -103,20 +104,19 @@ Having a learned dictionary that is specific to a certain type of data or to one
 The sparse representation can at the same time be sparser and represent the data better.
 Another key idea is to design overcomplete dictionaries which means that there are more atoms than the each atom dimension and so these atoms are not linearly independent.
 This is why the term basis to denote an overcomplete dictionary is abusive.
-Instead of being harmful, designing overcomplete dicionaries gives more flexibility to the sparse representation and leads to easier problems.
-The decomposition is not unique anymore as it would be with orthogonal basis such as Fourier or wavelet.
-% TODO:
-%% Contributions. Why is the studied method different/better/worse/etc. than existing previous works.
-%% TODO: P Stock While this intuitive bag-of-features approach is widely used in computer vision [6
+Designing overcomplete dicionaries gives more flexibility to the sparse representation and leads to easier problems than with an complete basis.
+However with atoms that are non linearly independant, the decomposition is not unique as it would be with orthogonal basis such as Fourier or wavelet which makes the problem harder to solve analytically.
+This is why we will study iterative approaches.
 
+%% Previous works (at least a few citations). If relevant, include things that you have seen during the MVA course (or possibly other courses).
+%% Contributions. Why is the studied method different/better/worse/etc. than existing previous works.
 
 \section{Problem statement}
 \subsection{Notations}
 Given a signal of size $m$, \textbf{$y \in \RR^m$}, a dictionary is a collection of $k$ prototype signal atoms represented in a matrix $D \in \RR^{m \times p}$
 We want to find $x \in \RR^p$, the sparse representation of $y$ in the dictionary $D$.
-We want an exact representation $D x = y$ or more frequently an approximate representation $ D x \approx y$.
-A sparse vector is a vector with a "small" number of non-zero coefficient.
-The sparsity measure is the $l_0$ pseudo-norm denoted $\norm{.}_0$.
+An representation $D x = y$ being often hard to find we will settle with an approximate representation $ D x \approx y$.
+A sparse vector is a vector with a "small" number of non-zero coefficient, this is why the sparsity measure is the $l_0$ pseudo-norm denoted $\norm{.}_0$ which counts the number of non-zero coefficients.
 The sparsity constraint then writes $\norm{x}_0<k$ with $k \in \mathbbm{N}$.
 
 The problem we want to solve is therefore
@@ -125,7 +125,7 @@ $$\min\limits_{D \in \RR^{m \times p}, x \in \RR^p} \norm{y - Dx}_2^2  \text{  s
 
 The sparsity measure, the $l_0$ pseudo-norm is non-convex which makes the problem hard to solve in many approaches like gradient descent because we are not guaranteed to find a minimum.
 Given that $\forall p <1$, the $l_p$ pseudo-norm is non convex, the closest convex norm that we can use is the $l_1$ norm which is in practice a good measure of the sparsity of a signal compared to other norms.
-This norm favors sparse representation as can be seen in figure \ref{l1l2_norm}
+This norm favors sparse representation as can be seen in figure \ref{l1l2_norm}.
 
 \begin{figure}[!htbp]
 \centering
@@ -134,23 +134,23 @@ This norm favors sparse representation as can be seen in figure \ref{l1l2_norm}
   \label{l1l2_norm}
 \end{figure}
 
-The constraint on $x$ will be traduced by $\chi_k = \{ x \in \RR^{p \times n}, \norm{x}_0<k \}$.
+The constraint on $x$ will be represented by $x \in \chi_k = \{ x \in \RR^{p \times n}, \norm{x}_0<k \}$.
 Furthermore we will want the dictionary to have normalized atoms.
 Otherwise the atoms norm will increase for the sole purpose of decreasing the sparse representation norm and hence the $l_1$ constraint.
 To prevent this behaviour from occuring we  will want $ D \in \mathcal{D} $ with $\mathcal{D} = \{ D \in \RR^{m \times p}, \forall i=1 \ldots p, \norm{D_{\cdot,i}} \leq 1 \}$.
 
-We will often want to minimize the error over $n$ signals which will give us
+We will often want to minimize the error over $n$ signals which will give us the problem :
 $$\min\limits_{D \in \mathcal{D}, (x_i)_{i=1}^n \in \chi_k} \sum\limits_{i=1}^n \norm{y_i - Dx_i}_2^2$$
 with $Y \in \RR^{m \times n}, Y = [y_1 \ldots y_n]$ and $X \in \RR^{p \times n}, X = [x_1 \ldots x_n]$.
 
-The problem now rewrites:
+The problem now rewrites in matrix form:
 \begin{equation} \label{eq:1}
 \min\limits_{D \in \mathcal{D}, X \in \chi_k} E(X,D) = \min\limits_{D \in \mathcal{D}, X \in \chi_k} \norm{Y - DX}_F^2
 \end{equation}
 
-In order to use proximal methods we can also rewrite \label{eq:1} by:
-$$\min E(X,D) + \iota_{\chi_k}(X) + \iota_{\mathcal{D}}(D)$$
-with $\iota_C$ the indicator of $C$ defined by
+Other methods like proximal methods will prefer rewriting \label{eq:1} as:
+$$\min_{X, D} E(X,D) + \iota_{\chi_k}(X) + \iota_{\mathcal{D}}(D)$$
+with $\iota_C$ the indicator of set $C$ defined by
 $ \iota_C(x) =
 \begin{cases}
 0, & \text{if } x \in C\\
@@ -161,14 +161,7 @@ $
 \subsection{Splitting the dictionary learning task into two subproblems}
 Minimizing \ref{eq:1} both over $D$ and $X$ jointly is often not feasible.
 That is why many approach split it into two subproblems that can be solved iteratively.
-The first is to sparse code the data given the dictionary and the second to update the dictionary given this sparse coding.
-
-% TODO:
- A natural approach to solving
-this problem is to alternate between the two variables, minimizing over one while keeping the other
-one fixed, as proposed by Lee et al. (2007) (see also Engan et al. 1999 and Aharon et al. 2006, who
-use $l_0$ rather than $l_1$ penalties, or Zou et al. 2006 for the problem of sparse principal component
-analysis).4
+The first is to sparse code the data given the dictionary and the second to update the dictionary given this sparse coding. Fixing a variable and minimizing over the other was studied to work well in practice by \cite{lee06}.
 
 \subsubsection{Finding the sparse representation}
 This subproblem writes:
@@ -176,15 +169,15 @@ This subproblem writes:
 X \in \argmin_{X \in \chi_k} \norm{Y - DX}^2
 \end{equation}
 Equation \ref{eq:2} is typically solved by iterating over X until we have a solution that yields a small enough error $E(X,D)$.
+Several alorithms called "pursuit algorithms" use this approach.
 
-There is a whole range of pursuit algorithms that use this approach.
-
-Matching pursuit was introduced by \cite{mallat93} and successfully applied to signal decomposition.
+The most intuitive is matching pursuit which was introduced by \cite{mallat93} and successfully applied to signal decomposition.
 The algorithm finds for each signal $y$, the atom $d_i$ which captures the most energy in the sense that
 $$d_i = \argmax_{d_i \in D} |<y, d_i>|$$.
 The corresponding coefficient is then set to $$x_i = \frac{<y, d_i>}{\norm{d_i}^2}$$ and the captured information is removed from $y$ so that $$y \leftarrow y - x_i d_i$$.
-This process is repeated until we reach the wanted sparsity or until the error is below a specified threshold.
-
+This process then is repeated until we reach the wanted sparsity or until the error is below a specified threshold.
+A popular extension is orthogonal matching pursuit which updates all coefficients at each iteration.
+Other pursuit algorithm are based on the matching pursuit approach and have shown great results such as FOCUSS for example.
 % TODO: (mairal10a)
 A number of recent methods for solving this type of problems are based on coordinate
 descent with soft thresholding (Fu, 1998; Friedman et al., 2007; Wu and Lange, 2008).
@@ -359,56 +352,58 @@ This algorithm is shown to converge to a solution $D^*$ and note that it does no
 %% Summary of the result obtained: pros and cons (limitation, problems, error in the articles, etc)
 %% Possible improvement/extension
 First filters of neural networks -> looks like a dictionary
-
+% The major conclusion of this line of research is that learning over a large set of
+% disparate natural images leads to localized oriented edge filters.
 
 
 \begin{thebibliography}{9}
 %% Bibliography (~1 page)
-\bibitem{mairal10}
-  J. Mairal, F. Bach, J.Ponce, G. Sapiro,
-  \emph{Online Learning for Matrix Factorization and Sparse Coding},
-  Journal of Machine Learning Research 11 19-60, 2010.
-  % http://www.di.ens.fr/~fbach/mairal10a.pdf
 
-\bibitem{aharon06}
-  Aharon, Michal, Michael Elad, and Alfred Bruckstein. "K-SVD: An Algorithm for Designing Overcomplete Dictionaries for Sparse Representation." IEEE Transactions on signal processing 54.11 (2006): 4311-4322.
+\bibitem{elad06}
+Elad, Michael, and Michal Aharon. "Image denoising via sparse and redundant representations over learned dictionaries." IEEE Transactions on Image processing 15.12 (2006): 3736-3745.
 
- %TODO: beautify
-\bibitem{mallat99}
-. Mallat. A Wavelet Tour of Signal Processing, Second Edition. Academic Press, New York,
-September 1999.
+\bibitem{peyre09}
+Peyré, Gabriel. "Sparse modeling of textures." Journal of Mathematical Imaging and Vision 34.1 (2009): 17-31.
 
-\bibitem{mallat93}
-%http://www.cmap.polytechnique.fr/~mallat/papiers/MallatPursuit93.pdf
-
-\bibitem{marcellin00}
-M. W. Marcellin, M. J. Gormish, A. Bilgin, and M. P. Boliek, “An
-overview of JPEG-2000,” in Proc. Data Compression Conf., 2000, pp.
-523–541.
-
-\bibitem{olshausen97}
-B. A. Olshausen and B. J. Field, “Sparse coding with an overcomplete
-basis set: A strategy employed by v1?,” Vision Res., vol. 37, pp.
-3311–3325, 1997.
+\bibitem{lee06}
+Lee, Honglak, et al. "Efficient sparse coding algorithms." Advances in neural information processing systems. 2006.
 
 \bibitem{gorodnitsky97}
-% http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.154.6856&rep=rep1&type=pdf
+Gorodnitsky, Irina F., and Bhaskar D. Rao. "Sparse signal reconstruction from limited data using FOCUSS: A re-weighted minimum norm algorithm." IEEE Transactions on signal processing 45.3 (1997): 600-616.
 
-\bibitem{nt4}
-%https://github.com/gpeyre/numerical-tours/blob/master/matlab/sparsity_4_dictionary_learning.ipynb
+\bibitem{mairal10}
+Mairal, Julien, et al. "Online learning for matrix factorization and sparse coding." Journal of Machine Learning Research 11.Jan (2010): 19-60.
+
+\bibitem{aharon06}
+Aharon, Michal, Michael Elad, and Alfred Bruckstein. "K-SVD: An Algorithm for Designing Overcomplete Dictionaries for Sparse Representation." IEEE Transactions on signal processing 54.11 (2006): 4311-4322.
+
+\bibitem{mallat99}
+Mallat, Stéphane. A wavelet tour of signal processing. Academic press, 1999.
+
+\bibitem{mallat93}
+Mallat, Stéphane G., and Zhifeng Zhang. "Matching pursuits with time-frequency dictionaries." IEEE Transactions on signal processing 41.12 (1993): 3397-3415.
+
+\bibitem{marcellin00}
+Marcellin, Michael W., et al. "An overview of JPEG-2000." Data Compression Conference, 2000. Proceedings. DCC 2000. IEEE, 2000.
+
+\bibitem{olshausen97}
+Olshausen, Bruno A., and David J. Field. "Sparse coding with an overcomplete basis set: A strategy employed by V1?." Vision research 37.23 (1997): 3311-3325.
 
 \bibitem{tseng01}
-P. Tseng, , J. Optim. Theory Appl., 109, 2001, 475-494.
+Tseng, Paul. "Convergence of a block coordinate descent method for nondifferentiable minimization." Journal of optimization theory and applications 109.3 (2001): 475-494.
 
 \bibitem{parikh14}
-Proximal Algorithms.
-N Parikh, SP Boyd - Foundations and Trends in optimization, 2014 - web.stanford.edu
+Parikh, Neal, and Stephen P. Boyd. "Proximal Algorithms." Foundations and Trends in optimization 1.3 (2014): 127-239.
 
 \bibitem{efron04}
 Efron, Bradley, et al. "Least angle regression." The Annals of statistics 32.2 (2004): 407-499.
 
 \bibitem{combettes11}
 Combettes, Patrick L., and Jean-Christophe Pesquet. "Proximal splitting methods in signal processing." Fixed-point algorithms for inverse problems in science and engineering. Springer New York, 2011. 185-212.
+
+\bibitem{nt4}
+Peyré, Gabriel. "Numerical tours - Dictionary learning",
+\href{https://github.com/gpeyre/numerical-tours/blob/master/matlab/sparsity_4_dictionary_learning.ipynb}{url}
 
 \end{thebibliography}
 \end{document}
