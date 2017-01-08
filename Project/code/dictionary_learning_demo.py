@@ -30,14 +30,6 @@ warnings.filterwarnings('ignore')
 
 # ## Image and variables
 
-img_size = 256
-filename = 'lena.bmp'
-f0 = load_image(filename, img_size)
-
-#plt.figure(figsize = (6,6))
-#imageplot(f0, 'Image f_0')
-
-
 width = 5
 signal_size = width*width
 n_atoms = 2*signal_size
@@ -49,6 +41,13 @@ synthetic_data = True
 if synthetic_data:
     Y, D0, X0 = datasets.make_sparse_coded_signal(n_samples, n_atoms, signal_size, k, random_state=0)
 else:
+    img_size = 256
+    filename = 'lena.bmp'
+    f0 = load_image(filename, img_size)
+
+    plt.figure(figsize = (6,6))
+    imageplot(f0, 'Image f_0')
+
     D0 = high_energy_random_dictionary(f0, width, n_atoms)
     Y = random_dictionary(f0, width, n_samples)
     Y = center(Y) # TODO: Center because the dictionary is centered and no intercept
@@ -62,14 +61,13 @@ n_iter = 10
 E = np.zeros(2*n_iter)
 X = np.zeros((n_atoms, n_samples))
 D = np.random.random(D0.shape)
-
 for i in tqdm(range(n_iter)):
     # Sparse coding
     X = sparse_code_fb(Y, D, X, sparsity=k, n_iter=100)
     E[2*i] = reconstruction_error(Y, D, X)
 
     # Dictionary update
-    D, _ = dictionary_update_ksvd(Y, D, X)
+    D, X = dictionary_update_ksvd(Y, D, X)
     #D = dictionary_update_fb(Y, D, X, n_iter=50)
     E[2*i+1] = reconstruction_error(Y, D, X)
 

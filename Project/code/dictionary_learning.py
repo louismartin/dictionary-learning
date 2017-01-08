@@ -18,7 +18,8 @@ def dictionary_update_ksvd(Y, D, X):
         omega_k = np.where(xk != 0)[1]
         xk_R = xk[:, omega_k]
         Ek_R = Ek[:, omega_k]
-        U, s, V = np.linalg.svd(Ek_R)
+        U, s, Vt = np.linalg.svd(Ek_R)
+        V = Vt.T # Numpy returns V.T instead of V
 
         # Update dk column and xk row
         D[:, k] = U[:, 0]
