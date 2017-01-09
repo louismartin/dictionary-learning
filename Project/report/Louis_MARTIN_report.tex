@@ -13,8 +13,6 @@
 \usepackage{fancyhdr}       % head notes and foot notes
 \usepackage{bbm}            % Nice symbols
 \usepackage{mathtools}      % Math tools like operators
-\usepackage{algorithm}      % For writing algorithm
-\usepackage[noend]{algpseudocode} % For writing pseudocode
 \graphicspath{ {images/} }
 
 
@@ -47,7 +45,7 @@
 \begin{abstract}
 %% Abstract (½ page):
 %% What problem(s) is studied ?
-This paper will focus on how to efficiently learn a dictionary in order to obtain a sparse representation of a signal (e.g. image or audio).
+This paper focuses on how to efficiently learn a dictionary in order to obtain a sparse representation of a signal (e.g. image or audio).
 %% Why is it relevant ?
 Deriving a sparse representation of a signal can be very efficient in solving multiple signal processing problems.
 It has been successfully used in compression, inpainting, denoising, inverse problems and more.
@@ -63,7 +61,6 @@ We propose to study and compare three different approaches to dictionary learnin
 K-SVD algorithm which is proposed as a generalization of clustering algorithms such as k-means.
 Online matrix factorization which provides an online approach to dictionary learning for big datasets.
 An intuitive block coordinate projected gradient descent which is a specific case of the forward-backward proximal iterave method.
-% TODO:
 %% Which contributions (theory, numerics, etc) ?
 
 \end{abstract}
@@ -148,7 +145,7 @@ The problem now rewrites in matrix form:
 \min\limits_{D \in \mathcal{D}, X \in \chi_k} E(X,D) = \min\limits_{D \in \mathcal{D}, X \in \chi_k} \norm{Y - DX}_F^2
 \end{equation}
 
-Other methods like proximal methods will prefer rewriting \label{eq:1} as:
+Other methods like proximal methods will prefer rewriting \ref{eq:1} as:
 $$\min_{X, D} E(X,D) + \iota_{\chi_k}(X) + \iota_{\mathcal{D}}(D)$$
 with $\iota_C$ the indicator of set $C$ defined by
 $ \iota_C(x) =
@@ -238,8 +235,6 @@ When $G = \iota_C$ then the proximal operator is the projection on the convex se
 $$Prox_{\gamma G}(x) = \argmin_{z \in C} \norm{x - z} = \Pi_C(x)$$
 In this special case, Forward-Back is equivalent to \emph{projected gradient descent}
 
-
-\subsubsection*{Back to dictionary learning}
 \ref{eq:pgd1} and \ref{eq:pgd2} can be rewritten as
 $$\argmin_X E(X,D) + \iota_{\chi_k}$$
 $$\argmin_D E(X,D) + \iota_{\mathcal{D}}$$
@@ -251,7 +246,8 @@ $$ D^{(i+1)} = D^{(i)} - \tau (D^{(i)}X^{(i+1)} - Y) X^T $$
 
 \begin{figure}[!htbp]
 \centering
-  \includegraphics[width=\linewidth]{projected_gradient_descent.png}
+  \includegraphics[width=\linewidth]{fb_12_iter_synthetic.png}
+  \caption{Implementation of Forward-Backward on synthetic data.}
 \end{figure}
 
 \subsection{K-SVD}
@@ -288,11 +284,17 @@ With $E_k^R = U \Delta V^T$ being the SVD decomposition of $E_k^R$, Eckart–You
 The update rule is therefore $d_k \leftarrow u_1$ and $x^k_R \leftarrow \sigma_1 v_1$.
 This step is repeated for all the columns as it is done for the means in K-means thus the name K-SVD.
 
+\begin{figure}[!htbp]
+\centering
+  \includegraphics[width=\linewidth]{ksvd_12_iter_synthetic.png}
+  \caption{Implementation of K-SVD on synthetic data.}
+\end{figure}
+
+
 
 \subsection{Online learning for matrix factorization}
-\cite{mairal10}
 \ref{eq:1} can be interpreted as a matrix factorization problem. Indeed we try to find a factorization of $Y$ in the form $DX$.
-When confronted with a very large number of samples $N$, it is impractical to work directly with the $Y$ and $X$ matrices. That is why this paper proposes to solve the problem iteratively, sample by sample in an online fashion. Online learning also reduces overfitting if given a big enough dataset.
+When confronted with a very large number of samples $N$, it is impractical to work directly with the $Y$ and $X$ matrices. That is why \cite{mairal10} proposes to solve the problem iteratively, sample by sample in an online fashion. Online learning also reduces overfitting if given a big enough dataset.
 
 The method proposed draws random samples as in stochastic gradient descent, derive its sparse representation and then updates the dictionary.
 However the objective is to not only update the dictionary based on the current sample but also on all the samples that we previously considered in order to have a more substantial update.
@@ -366,16 +368,33 @@ Forward-Backward algorithm is the only algorithm with a learning rate that would
 
 What we can take out of this experiment is that K-SVD might be the best suited algorithm for small dataset like patches of an image, it outperforms the two other algorithms probably because of its clever update
 On the other hand, online matrix factorization is way more adapted for large datasets and online learning.
+
 \section{Conclusion}
 %% Conclusion and perspective (~1 page)
 %% Summary of the result obtained: pros and cons (limitation, problems, error in the articles, etc)
 %% Possible improvement/extension
-First filters of neural networks -> looks like a dictionary
-% The major conclusion of this line of research is that learning over a large set of
-% disparate natural images leads to localized oriented edge filters.
+Dictionary learning can be used in a wide array of signal processing tasks, that is why it is important to find efficient and accurate methods to learn appropriate dictionaries.
+The algorithm studied each have their particularities. K-SVD seems to be the best bet because it is both fast and accurate. Forward-Backward's update rule is more intuitive but might need more learning rate tinkering. Finally, online matrix factorization is more adapted to online learning and very large datasets. It can even be improved by several modifications proposed in \cite{mairal10} like mini-batch training.
 
+\subsubsection*{Application to real image}
 
+\begin{figure}[!htbp]
+\centering
+  \begin{subfigure}[b]{.35\linewidth}
+    \includegraphics[width=\linewidth]{lena.png}
+    \caption{Natural image used to sample patches to learn a dictionary.}
+  \end{subfigure}
+  \begin{subfigure}[b]{.6\linewidth}
+    \includegraphics[width=\linewidth]{dict_lena.png}
+    \caption{Centered dictionary learnt by K-SVD}
+  \end{subfigure}
+  \label{dict_lena}
+\end{figure}
 
+We applied the K-SVD algorithm on 10x10 patches of a natural image.
+The resulting dictionary in figure \ref{dict_lena} shows interesting patterns.
+It seems that the algorithm prefered atoms with higher energy with oriented edges.
+Their representation power is indeed higher than smoother patches, it is easier to represent shapes with edges.
 
 \begin{thebibliography}{9}
 %% Bibliography (~1 page)
