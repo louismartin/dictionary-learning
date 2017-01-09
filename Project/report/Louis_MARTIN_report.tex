@@ -25,7 +25,7 @@
 \DeclareMathOperator*{\argmin}{arg\,min} % argmin
 \DeclareMathOperator*{\argmax}{arg\,max} % argmax
 
-\title{P3 - Dictionary learning, application to denoising and inpainting}
+\title{Dictionary learning}
 
 
 \author{
@@ -111,7 +111,7 @@ This is why we will study iterative approaches.
 %% Previous works (at least a few citations). If relevant, include things that you have seen during the MVA course (or possibly other courses).
 %% Contributions. Why is the studied method different/better/worse/etc. than existing previous works.
 
-\section{Problem statement}
+\section{Problem statement and previous work}
 \subsection{Notations}
 Given a signal of size $m$, \textbf{$y \in \RR^m$}, a dictionary is a collection of $k$ prototype signal atoms represented in a matrix $D \in \RR^{m \times p}$
 We want to find $x \in \RR^p$, the sparse representation of $y$ in the dictionary $D$.
@@ -176,30 +176,21 @@ The algorithm finds for each signal $y$, the atom $d_i$ which captures the most 
 $$d_i = \argmax_{d_i \in D} |<y, d_i>|$$.
 The corresponding coefficient is then set to $$x_i = \frac{<y, d_i>}{\norm{d_i}^2}$$ and the captured information is removed from $y$ so that $$y \leftarrow y - x_i d_i$$.
 This process then is repeated until we reach the wanted sparsity or until the error is below a specified threshold.
-A popular extension is orthogonal matching pursuit which updates all coefficients at each iteration.
-Other pursuit algorithm are based on the matching pursuit approach and have shown great results such as FOCUSS for example.
-% TODO: (mairal10a)
-A number of recent methods for solving this type of problems are based on coordinate
-descent with soft thresholding (Fu, 1998; Friedman et al., 2007; Wu and Lange, 2008).
+A popular extension is orthogonal matching pursuit which updates all coefficients at each iteration. This leads to better results but also needs more computation.
 
-MP OMP FOCUSS \cite{gorodnitsky97} PGD
-Wikipedia -> A popular extension of Matching Pursuit (MP) is its orthogonal version: Orthogonal Matching Pursuit[11][12] (OMP). The main difference from MP is that after every step, all the coefficients extracted so far are updated, by computing the orthogonal projection of the signal onto the set of atoms selected so far. This can lead to better results than standard MP, but requires more computation.
+Other pursuit algorithms are based on the matching pursuit approach and have shown great results such as FOCUSS for example.
+
+Other successful approach using coordinate descent were successfully used as in \cite{wu08}, it is the type of approach that we used in the block coordinate gradient descent algorithm.
+
 \subsubsection{Finding the dictionary}
 PGD MOD
-Finding the best sparse representation of a signal is a NP-Hard problem, that is why we will approximate the signal.
-% TODO: citation with author and date
-% TODO: talking of 'basis' is abusive because it is often overcomplete
-%%%%%%%%%% Taken from \cite{matrixfactorization}
-%recently led to state-of-the-art
-%results in numerous low-level signal processing tasks such as image denoising (Elad and Aharon,
-%2006; Mairal et al., 2008b), texture synthesis (Peyre, 2009) and audio processing (Grosse et al.,
-%2007; Fevotte et al., 2009; Zibulevsky and Pearlmutter, 2001), as well as higher- level tasks such as
-%image classification (Raina et al., 2007; Mairal et al., 2008a, 2009b; Bradley and Bagnell, 2009;
-%Yang et al., 2009),
-%%%%%%%%%%
-%The learnt basis look like wavelets / Gabor filters but are tuned to the data -> better accuracy
-Not penalizing the dictionary -> dictionary values will increase for the sparse coef to tend to 0
-\cite{olshausen97} (k-SVD p-4313 [24]).
+This part is the core of the dictionary learning problem and we will study it more in depth in the following sections.
+
+The method of optimal directions from \cite{engan99} gives the optimal dictionary $D$ given a fixed $X$ with the update method:
+$$ D^{i+1} = Y (X^{(i)})^T . (X^{(i)} (X^{(i)})^T)^{-1} $$
+It however requires a matrix inversion which is impractical for large dictionaries.
+
+
 \section{Dictionary learning methods}
 %% Main body (~10 pages) :
 %% Presentation of the method(s).
@@ -210,15 +201,6 @@ Sparse coding the vector and updating the dictionary given this sparse represent
 
 
 \subsection{Proximal methods}
-% TODO:
-\cite{olshausen97} (k-SVD p-4313 [24])
-% TODO:
-In the case of dictionary learning, the classical projected first-order projected stochastic gradient
-descent algorithm (as used by Aharon and Elad 2008; Kavukcuoglu et al. 2008 for instance) consists
-of a sequence of updates of D:
-
-
-
 A intuitive and efficient algorithm for dictionary learning is to use a block coordinate gradient descent approach as in implemented in \cite{nt4} and is shown to converge in \cite{tseng01}.
 This algorithm is part of the category of proximal methods and has gained substantial attention in signal processing \cite{combettes11}.
 This is a two step algorithm.
@@ -267,17 +249,10 @@ We thus only need compute the gradient of $E(X,D)$ with respect to X and D and a
 $$ X^{(i+1)} = X^{(i)} - \gamma D^T (D^{(i)}X^{(i)} - Y) $$
 $$ D^{(i+1)} = D^{(i)} - \tau (D^{(i)}X^{(i+1)} - Y) X^T $$
 
-\begin{algorithm}
-\caption{Projected gradient descent}\label{pgd}
-\begin{algorithmic}[1]
-\State toto
-\end{algorithmic}
-\end{algorithm}
-
 \begin{figure}[!htbp]
 \centering
   \includegraphics[width=\linewidth]{projected_gradient_descent.png}
-\end{figure}0
+\end{figure}
 
 \subsection{K-SVD}
 The approach in \cite{aharon06} is interesting in the way that it considers the dictionary learning problem as a generalization of a clustering problem. Clustering is indeed an extreme case of sparse coding where there is only one non-zero coefficient and this coefficient must be one.
@@ -344,9 +319,53 @@ We can then update each column independently with:
 $$ u_j \leftarrow \frac{1}{A[j,j](b_j - D a_j) + d_j} $$
 $$ d_j \leftarrow \frac{1}{\max(\norm{u_j}_2, 1)} u_j $$
 
-% TODO:
 This algorithm is shown to converge to a solution $D^*$ and note that it does not depend on any paramater such as a learning rate.
 
+\section{Results}
+\subsubsection*{Synthetic data}
+We tested the algorithms on synthetic sparse data generated by scikit-learn module. We generate signals $Y$ from a given dictionary $D$ and sparse coefficients $X$. The algorithms are then given only $Y$ and have to find an appropriate sparse representation of $Y$ by learning a dictionary.
+The parameters used for this synthetic data are:
+$$signal\_size=25, n\_atoms=50, n\_samples=1000, sparsity=4$$
+
+\subsubsection*{Sparse coding}
+
+\begin{figure}[!htbp]
+\begin{tabular}{|c|c|c|c|}
+  \hline
+  & OMP & Lasso & FB \\ \hline
+  Speed & 940 ms & 270 ms & 870 ms \\ \hline
+  $E(X,D)$ & 7 & 230 & 284 \\ \hline
+\end{tabular}
+  \caption{Evaluation of Orthogonal matching pursuit, Lasso, and Forward-backward (100 iterations) on synthetic data. We evaluate the speed for one step and the reconstruction error of the sparse coding after this step.}
+  \label{sparse_coding_perfs}
+\end{figure}
+We evaluated the speed and reconstruction error after one sparse coding step for Orthogonal matching pursuit, lasso regression, and the forward-backward scheme in figure \ref{sparse_coding_perfs}.
+The result are not to be taken as ground truth because the number of samples is very small and there are several parameters that could have been tweaked for the different algorithms. An extensive benchmark should be run.
+However we can see that orthogonal matching pursuit is better at finding a sparse representation and lasso is pretty fast in these settings. Orthogonal matching pursuit seems a reliable choice for sparse coding the data.
+
+\subsubsection*{Dictionary learning}
+
+\begin{figure}[!htbp]
+\centering
+  \includegraphics[width=\linewidth]{comparison_120s_synthetic.png}
+  \caption{Comparison of the three algorithms}
+  \label{comparison}
+\end{figure}
+
+We ran the three algorithm on synthetic data, namely (sparse coding - dictionary update):
+\begin{itemize}
+  \item Orthogonal matching pursuit - K-SVD
+  \item Lasso - Online matrix factorization
+  \item Forward-Backward (for both)
+\end{itemize}
+The algorithms were timed and the reconstruction error tracked which gave the results displayed on figure \ref{comparison}.
+It seems that both Online matrix factorization and Forward-Backward seem to plateau and decrease ever so slowly from a point whereas K-SVD gives very good results and continue learning while the others are stuck.
+However the pros of online matrix factorization is that it can handle large amount of samples whereas the others cannot.
+This might be why it does not perform as well on small datasets, solving the problem sample by sample is indeed slower.
+Forward-Backward algorithm is the only algorithm with a learning rate that would probably give better results if dynamically adapted to the evolution of the error.
+
+What we can take out of this experiment is that K-SVD might be the best suited algorithm for small dataset like patches of an image, it outperforms the two other algorithms probably because of its clever update
+On the other hand, online matrix factorization is way more adapted for large datasets and online learning.
 \section{Conclusion}
 %% Conclusion and perspective (~1 page)
 %% Summary of the result obtained: pros and cons (limitation, problems, error in the articles, etc)
@@ -354,6 +373,8 @@ This algorithm is shown to converge to a solution $D^*$ and note that it does no
 First filters of neural networks -> looks like a dictionary
 % The major conclusion of this line of research is that learning over a large set of
 % disparate natural images leads to localized oriented edge filters.
+
+
 
 
 \begin{thebibliography}{9}
@@ -401,12 +422,19 @@ Efron, Bradley, et al. "Least angle regression." The Annals of statistics 32.2 (
 \bibitem{combettes11}
 Combettes, Patrick L., and Jean-Christophe Pesquet. "Proximal splitting methods in signal processing." Fixed-point algorithms for inverse problems in science and engineering. Springer New York, 2011. 185-212.
 
+\bibitem{wu08}
+Wu, Tong Tong, and Kenneth Lange. "Coordinate descent algorithms for lasso penalized regression." The Annals of Applied Statistics (2008): 224-244.
+
+\bibitem{engan99}
+Engan, Kjersti, Sven Ole Aase, and J. Hakon Husoy. "Method of optimal directions for frame design." Acoustics, Speech, and Signal Processing, 1999. Proceedings., 1999 IEEE International Conference on. Vol. 5. IEEE, 1999.
+
 \bibitem{nt4}
 Peyré, Gabriel. "Numerical tours - Dictionary learning",
 \href{https://github.com/gpeyre/numerical-tours/blob/master/matlab/sparsity_4_dictionary_learning.ipynb}{url}
 
 \end{thebibliography}
 \end{document}
+
 % Information for the project report:
 % If possible, write the report in english.
 % You must bring a printed version with your to give me before the presentation. This is a strict deadline.
@@ -434,29 +462,3 @@ Peyré, Gabriel. "Numerical tours - Dictionary learning",
 % Summary of the result obtained: pros and cons (limitation, problems, error in the articles, etc)
 % Possible improvement/extension
 % Bibliography (~1 page)
-%
-%
-% P3 - Dictionary learning, application to denoising and inpainting
-% [Louis MARTIN]
-% http://www.numerical-tours.com/matlab/sparsity_4_dictionary_learning/
-% http://www.numerical-tours.com/matlab/sparsity_5_dictionary_learning_denoising/
-% http://www.cs.technion.ac.il/~elad/publications/journals/2004/32_KSVD_IEEE_TSP.pdf
-% http://www.di.ens.fr/~fbach/mairal10a.pdf
-%
-%
-% Very useful to have a redundant dictionary i.e. more words than each word dimension.
-%
-
-% En gros implementer ce qu'ils disent dans les papiers.
-% Jouer avec les parametres et essayer de voir ce qui marche bien.
-% Parametres:
-% taille des patch
-% choix du seuil
-% param de moyennage (param magique)
-%
-% Appliquer ça à l'inpainting:
-% faire le dictionnary learning direct sur l'image avec des trous. Ca marche mieux
-% que de le faire sur une image sans trous.
-%
-%
-%
