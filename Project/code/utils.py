@@ -4,6 +4,19 @@ import matplotlib.pyplot as plt
 from nt_toolbox.signal import imageplot
 
 
+def damage_image(image, removed_pixels):
+    assert image.shape[0] == image.shape[1]
+    img_size = image.shape[0]
+    Omega = np.zeros([img_size, img_size])
+    sel = np.random.permutation(img_size**2)
+    np.ravel(Omega)[sel[np.arange(int(removed_pixels*img_size**2))]] = 1
+
+    def Phi(f, Omega): return f*(1-Omega)
+
+    damaged_image = Phi(image, Omega)
+    return damaged_image
+
+
 def random_dictionary(image, width, n_atoms):
     '''
     Takes an image as input and returns a dictionary
